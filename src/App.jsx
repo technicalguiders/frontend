@@ -1,8 +1,81 @@
 import{useState,useEffect,useCallback}from"react";
 
 // ═══ API CONFIG ═══
-const API_BASE="https://api.technicalguider.com/api"; // ← YOUR BACKEND URL
-const DEMO=true; // ← Set FALSE when backend is deployed
+const API_BASE="https://api.technicalguider.com/api";
+const DEMO=true;
+
+// ═══ GOOGLE SHEETS DIRECT CONNECT ═══
+const SHEET_ID="1SHd_kEX-Y-lFTQrUZWgOYr2dLFciiA7HYDQkJ8uOcUY";
+const SHEET_GID="860191075";
+const SHEET_LIVE=true; // Set TRUE to fetch from Google Sheet
+
+async function fetchGoogleSheet(){
+  try{
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+    const res=await fetch(url);
+    if(!res.ok)throw new Error("Sheet fetch failed");
+    const csv=await res.text();
+    // Parse CSV
+    const lines=csv.split("\n").filter(l=>l.trim());
+    if(lines.length<2)return[];
+    // Parse header
+    const parseRow=(line)=>{
+      const result=[];let cur="";let inQ=false;
+      for(let i=0;i<line.length;i++){
+        const c=line[i];
+        if(c==='"'){inQ=!inQ}
+        else if(c===','&&!inQ){result.push(cur.trim().replace(/^"|"$/g,""));cur=""}
+        else{cur+=c}
+      }
+      result.push(cur.trim().replace(/^"|"$/g,""));
+      return result;
+    };
+    const headers=parseRow(lines[0]).map(h=>h.toLowerCase().replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,""));
+    const rows=[];
+    for(let i=1;i<lines.length;i++){
+      const vals=parseRow(lines[i]);
+      if(vals.length<3)continue;
+      const row={};
+      headers.forEach((h,j)=>{row[h]=vals[j]||""});
+      // Map to lead format — auto-detect common column names
+      const get=(...keys)=>{for(const k of keys){const v=row[k]||row[k.replace(/_/g,"")];if(v)return v}return""};
+      const score=parseInt(get("overall_score","score","website_score","total_score"))||0;
+      const lead={
+        id:i,
+        name:get("lead_name","name","business_name","business","company","company_name")||"Lead "+i,
+        url:get("website","url","site","domain","website_url"),
+        city:get("city","location","area","district"),
+        state:get("state"),
+        type:get("category","type","industry","business_type","niche"),
+        score:score,
+        mobile:parseInt(get("mobile_score","mobile","mobile_speed"))||0,
+        seo:get("seo_grade","seo","seo_score")||"F",
+        risk:get("risk_level","risk","security_level")||(score>=60?"LOW":score>=35?"MEDIUM":"HIGH"),
+        loss:get("revenue_impact","loss","monthly_loss","revenue_loss")||"0",
+        ls:parseInt(get("lead_score","ls","priority","priority_score"))||50,
+        views:parseInt(get("views","report_views","opens"))||0,
+        lv:get("last_viewed","last_view","last_opened")||null,
+        stage:get("stage","status","pipeline_stage")||"audited",
+        owner:get("owner","assigned_to","assignee","team_member"),
+        src:get("source","lead_source")||"Maps",
+        ph:get("phone","phone_number","mobile_number","contact","number"),
+        email:get("email","email_address","mail"),
+        cms:get("cms","cms_type","platform")||"Unknown",
+        lt:(get("load_time","speed","page_speed")||"0")+"s",
+        ga:get("analytics","google_analytics","ga")==="true"||get("analytics","google_analytics","ga")==="yes"||get("analytics","google_analytics","ga")==="TRUE",
+        pixel:get("pixel","meta_pixel","fb_pixel")==="true"||get("pixel","meta_pixel","fb_pixel")==="yes",
+        ssl:get("ssl","https","ssl_secure")==="true"||get("ssl","https","ssl_secure")==="yes"||get("ssl","https","ssl_secure")==="TRUE",
+        contact_person:get("contact_person","contact_name","person","owner_name"),
+      };
+      rows.push(lead);
+    }
+    console.log("📊 Loaded "+rows.length+" leads from Google Sheet");
+    return rows;
+  }catch(err){
+    console.error("Sheet fetch error:",err);
+    return null;
+  }
+}
 
 const getToken=()=>{try{return localStorage.getItem("tg_token")}catch{return null}};
 const setTokenLS=(t)=>{try{localStorage.setItem("tg_token",t)}catch{}};
@@ -75,6 +148,20 @@ const reloadLeads=useCallback(async()=>{
   setLoading(false);
 },[]);
 useEffect(()=>{if(loggedIn&&!DEMO)reloadLeads()},[loggedIn]);
+
+// Google Sheet direct fetch
+useEffect(()=>{
+  if(!SHEET_LIVE||!loggedIn)return;
+  (async()=>{
+    setLoading(true);
+    const sheetData=await fetchGoogleSheet();
+    if(sheetData&&sheetData.length>0){
+      setAllLeads(sheetData);
+      showT("📊 "+sheetData.length+" leads loaded from Google Sheet!");
+    }
+    setLoading(false);
+  })();
+},[loggedIn]);
 const[sr,setSr]=useState("");
 const[fC,setFC]=useState("All");
 const[cmdCat,setCmdCat]=useState("All");
@@ -135,7 +222,7 @@ const[newNote,setNewNote]=useState("");
 const[tagFilter,setTagFilter]=useState("all");
 const[stageFilter,setStageFilter]=useState("all");
 const[srcFilter,setSrcFilter]=useState("all");
-const[sheetUrl,setSheetUrl]=useState("https://docs.google.com/spreadsheets/d/1abc-xyz/edit");
+const[sheetUrl,setSheetUrl]=useState("https://docs.google.com/spreadsheets/d/1SHd_kEX-Y-lFTQrUZWgOYr2dLFciiA7HYDQkJ8uOcUY/edit");
 // Notepad
 const[npNotes,setNpNotes]=useState([
   {id:1,title:"Project Plan — March",body:"• Launch 200 reports/day pipeline\n• Fix WhatsApp rate limiting\n• Hire 1 more sales exec\n• Target: ₹5L revenue this month",pinned:true,updated:"5 Mar 2:30 PM"},
@@ -339,9 +426,9 @@ if(!loggedIn){
 // ═══ LEAD DETAIL (Advanced) ═══
 if(det){const d=det;const tools=[["Analytics",d.ga],["Pixel",d.pixel],["SSL",d.ssl],["CMS",d.cms!=="HTML"]];
 return(
-<div style={{minHeight:"100vh",background:T.bg,fontFamily:ff,color:T.tx,transition:"all .4s"}}>
+<div style={{minHeight:"100vh",width:"100%",background:T.bg,fontFamily:ff,color:T.tx,transition:"all .4s"}}>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<style>{`*{margin:0;padding:0;box-sizing:border-box}@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}body{background:${T.bg}}`}</style>
+<style>{`*{margin:0;padding:0;box-sizing:border-box}html,body,#root{width:100%}@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}body{background:${T.bg}}`}</style>
 <div style={{padding:mob?"20px 16px":"36px 40px",animation:"rise .5s cubic-bezier(.16,1,.3,1) both"}}>
   {/* Header */}
   <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:36}}>
@@ -450,10 +537,11 @@ return(
 
 // ═══ MAIN RENDER ═══
 return(
-<div style={{display:"flex",minHeight:"100vh",background:T.bg,fontFamily:ff,color:T.tx,transition:"all .4s"}}>
+<div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:ff,color:T.tx,transition:"all .4s"}}>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>{`
 *{margin:0;padding:0;box-sizing:border-box}
+html,body,#root{width:100%;min-height:100vh}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:${dk?"rgba(255,255,255,.06)":"rgba(0,0,0,.06)"};border-radius:6px}
@@ -557,7 +645,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       <div style={{fontSize:18,fontWeight:700}}>📥 Import Leads</div>
       <button onClick={()=>{setCsvModal(false);setCsvStep(1);setCsvData(null)}} style={{width:36,height:36,borderRadius:10,border:"1px solid "+T.bd,background:T.el,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:T.txS}}>✕</button>
     </div>
-    <div style={{padding:28}}>
+    <div style={{padding:24}}>
       {/* Steps */}
       <div style={{display:"flex",gap:8,marginBottom:28}}>
         {[["1","Upload CSV"],["2","Map Columns"],["3","Review & Import"]].map(([n,l],i)=>(
@@ -654,13 +742,13 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
 </aside>
 
 {/* MAIN */}
-<main style={{flex:1,marginLeft:mob?0:72,marginBottom:mob?68:0,display:"flex",flexDirection:"column",overflow:"hidden",transition:"margin .3s"}}>
-<header style={{padding:"14px 36px",background:dk?"rgba(12,15,24,.75)":"rgba(255,255,255,.82)",backdropFilter:"blur(32px) saturate(1.4)",borderBottom:"1px solid "+T.bd,display:"flex",alignItems:"center",gap:20,position:"sticky",top:0,zIndex:20}}>
-  <div style={{flex:1,maxWidth:mob?999:400,flex:1,position:"relative"}}>
+<main style={{flex:1,marginLeft:mob?0:72,marginBottom:mob?68:0,display:"flex",flexDirection:"column",overflow:"hidden",transition:"margin .3s",width:mob?"100%":"calc(100% - 72px)",minWidth:0}}>
+<header style={{padding:"12px 32px",background:dk?"rgba(12,15,24,.75)":"rgba(255,255,255,.82)",backdropFilter:"blur(32px) saturate(1.4)",borderBottom:"1px solid "+T.bd,display:"flex",alignItems:"center",gap:16,position:"sticky",top:0,zIndex:20}}>
+  <div style={{flex:1,position:"relative"}}>
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={T.txM} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{position:"absolute",left:16,top:"50%",transform:"translateY(-50%)"}}><path d="M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35"/></svg>
-    <input placeholder="Search…" value={sr} onChange={e=>setSr(e.target.value)} style={{...IS,paddingLeft:44,background:dk?T.el:T.ra}}/>
+    <input placeholder="Search leads, pages, actions…" value={sr} onChange={e=>setSr(e.target.value)} style={{...IS,paddingLeft:44,background:dk?T.el:T.ra,width:"100%"}}/>
   </div>
-  <div style={{display:"flex",alignItems:"center",gap:14}}>
+  <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
     <div className="mob-hide" style={{display:"flex",gap:5,padding:"8px 14px",background:dk?T.el:T.ra,borderRadius:10,border:"1px solid "+T.bd,alignItems:"center"}}><div style={{width:8,height:8,borderRadius:4,background:T.gn,boxShadow:`0 0 6px ${T.gn}55`}}/><span style={{fontSize:11,color:T.txM,fontWeight:500,marginLeft:4}}>All Systems OK</span></div>
     {/* CSV Import */}
     <button onClick={()=>setCsvModal(true)} className="hov" style={{padding:"8px 14px",borderRadius:10,border:"1px solid "+T.bd,background:T.sf,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>📥 Import</button>
@@ -671,7 +759,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         {notifs.filter(n=>!n.read).length>0&&<div style={{position:"absolute",top:-2,right:-2,width:18,height:18,borderRadius:9,background:T.rd,color:"#fff",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 2px 8px ${T.rd}44`}}>{notifs.filter(n=>!n.read).length}</div>}
       </div>
       {/* Notification Panel */}
-      {notifOpen&&<div style={{position:"absolute",top:"100%",right:0,marginTop:8,width:400,maxHeight:500,background:dk?"rgba(12,15,24,.92)":"rgba(255,255,255,.96)",backdropFilter:"blur(24px) saturate(1.3)",border:"1px solid "+T.bd,borderRadius:22,boxShadow:dk?"0 20px 60px rgba(0,0,0,.5),0 0 60px "+T.acc+"06":"0 20px 60px rgba(0,0,0,.08)",overflow:"hidden",zIndex:100,animation:"fadeScale .25s cubic-bezier(.16,1,.3,1)"}}>
+      {notifOpen&&<div style={{position:"absolute",top:"100%",right:0,marginTop:8,width:400,maxHeight:500,background:dk?"rgba(12,15,24,.92)":"rgba(255,255,255,.96)",backdropFilter:"blur(24px) saturate(1.3)",border:"1px solid "+T.bd,borderRadius:18,boxShadow:dk?"0 20px 60px rgba(0,0,0,.5),0 0 60px "+T.acc+"06":"0 20px 60px rgba(0,0,0,.08)",overflow:"hidden",zIndex:100,animation:"fadeScale .25s cubic-bezier(.16,1,.3,1)"}}>
         <div style={{padding:"16px 20px",borderBottom:"1px solid "+T.bd,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:15,fontWeight:700}}>Notifications</span>
           <button onClick={()=>{setNotifs(p=>p.map(n=>({...n,read:true})));showT("✅ All marked read")}} style={{fontSize:11,color:T.acc,fontWeight:600,background:"none",border:"none",cursor:"pointer",fontFamily:ff}}>Mark all read</button>
@@ -693,31 +781,32 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   </div>
 </header>
 
-<div style={{flex:1,overflow:"auto",padding:mob?"20px 16px 80px":"32px 32px 64px"}}>
-<div key={pg+String(dk)} style={{position:"relative",zIndex:1,animation:"rise .6s cubic-bezier(.16,1,.3,1) both",width:"100%",maxWidth:1400,margin:"0 auto"}}>
+<div style={{flex:1,overflow:"auto",padding:mob?"16px 14px 80px":"28px 28px 48px"}}>
+<div key={pg+String(dk)} style={{position:"relative",zIndex:1,animation:"rise .6s cubic-bezier(.16,1,.3,1) both",width:"100%"}}>
 
 {/* ═══ HOME ═══ */}
 {pg==="home"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
+  {loading&&<div style={{textAlign:"center",padding:40,color:T.acc,fontSize:16,fontWeight:600}}>📊 Loading data from Google Sheet...</div>}
   {/* AI Briefing */}
-  <div className="glow-accent" style={{background:`linear-gradient(135deg,${T.acc}0C,${dk?"rgba(99,102,241,.04)":"rgba(99,102,241,.02)"},${T.acc}06)`,border:"1px solid "+T.acc+"22",borderRadius:24,padding:"28px 32px",animation:"fadeScale .6s cubic-bezier(.16,1,.3,1) both",position:"relative",overflow:"hidden"}}>
+  <div className="glow-accent" style={{background:`linear-gradient(135deg,${T.acc}0C,${dk?"rgba(99,102,241,.04)":"rgba(99,102,241,.02)"},${T.acc}06)`,border:"1px solid "+T.acc+"22",borderRadius:20,padding:mob?"22px":"28px 36px",animation:"fadeScale .6s cubic-bezier(.16,1,.3,1) both",position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",top:-60,right:-60,width:200,height:200,borderRadius:"50%",background:`radial-gradient(circle,${T.acc}0A,transparent 70%)`,pointerEvents:"none"}}/>
     <div style={{position:"absolute",bottom:-40,left:-40,width:160,height:160,borderRadius:"50%",background:`radial-gradient(circle,${dk?"rgba(99,102,241,.06)":"rgba(99,102,241,.03)"},transparent 70%)`,pointerEvents:"none"}}/>
     <div style={{display:"flex",gap:20}}><div style={{width:52,height:52,borderRadius:18,background:accG,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>✦</div><div><div style={{fontSize:20,fontWeight:700,marginBottom:8}}>Good afternoon, Sahil</div><div style={{fontSize:15,color:T.txS,lineHeight:1.9}}><strong style={{color:T.acc}}>3 hot leads</strong> viewed 3+ times. <strong style={{color:T.gn}}>5 replies</strong> waiting. 2 calls today. MTD: <strong style={{color:T.gn}}>₹2.4L</strong> from 6 deals. <strong style={{color:T.yw}}>Priority:</strong> Follow up Delhi Dental (opened 8× today).</div></div></div>
   </div>
 
   {/* KPIs Row 1 */}
-  <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
+  <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:mob?10:16}}>
     {[{l:"Reports Today",v:"12",s:"+4 vs yesterday",c:T.gn,e:"📄"},{l:"WhatsApp Sent",v:"47",s:"98% delivered",c:T.bl,e:"📤"},{l:"Reports Opened",v:"31",s:"66% open rate",c:T.yw,e:"👁"},{l:"Replies Received",v:"5",s:"10.6% reply rate",c:T.acc,e:"💬"},{l:"Revenue MTD",v:"₹2.4L",s:"6 deals closed",c:T.gn,e:"💰"}].map((k,i)=>(
-      <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"26px 22px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+      <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${k.c},${k.c}66,transparent)`,opacity:.35}}/>
         <div style={{position:"absolute",top:-30,right:-20,width:80,height:80,borderRadius:"50%",background:`radial-gradient(circle,${k.c}06,transparent 70%)`,pointerEvents:"none"}}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
-            <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>{k.l}</div>
-            <div style={{fontSize:34,fontWeight:800,letterSpacing:-2,lineHeight:1}}>{k.v}</div>
+            <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
+            <div style={{fontSize:32,fontWeight:800,letterSpacing:-2,lineHeight:1}}>{k.v}</div>
             <div style={{fontSize:12,color:T.txM,marginTop:10}}>{k.s}</div>
           </div>
-          <span style={{fontSize:24,opacity:.08}}>{k.e}</span>
+          <span style={{fontSize:22,opacity:.07}}>{k.e}</span>
         </div>
       </div>
     ))}
@@ -733,7 +822,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   {/* Row 2: Pipeline + Conversion + Hot Leads */}
   <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
     {/* Pipeline Mini */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Pipeline</div><span onClick={()=>setPg("pipeline")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>Open →</span></div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {STG.slice(0,7).map(s=>{const cnt=pc[s]||0;return(
@@ -748,7 +837,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
 
     {/* Conversion Funnel */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:18}}>Conversion Funnel</div>
       {[["Sent → Opened","66%",T.yw],["Opened → Replied","16%",T.acc],["Replied → Call","60%",T.pr],["Call → Won","53%",T.gn],["Overall","4.2%",T.gn]].map(([l,v,c],i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:i<4?"1px solid "+T.bd:"none"}}>
@@ -760,7 +849,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
 
     {/* Hot Leads */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>🔥 Hot Leads</div><span onClick={()=>setPg("tracking")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
       {allLeads.filter(l=>l.views>=2).sort((a,b)=>b.views-a.views).slice(0,4).map((l,i)=>(
         <div key={i} onClick={()=>setDet(l)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid "+T.bd,cursor:"pointer"}}>
@@ -775,7 +864,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   {/* Row 3: Revenue mini + Team + Campaigns */}
   <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
     {/* Revenue */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Revenue</div><span onClick={()=>setPg("revenue")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>Details →</span></div>
       <div style={{fontSize:36,fontWeight:800,color:T.gn,letterSpacing:-2,marginBottom:12}}>₹2.4L</div>
       {[["Clinic","₹1.2L",T.gn,80],["Astrologer","₹80K",T.acc,53],["Restaurant","₹60K",T.bl,40]].map(([c,r,cl,w],i)=>(
@@ -788,7 +877,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
 
     {/* Team */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Team</div><span onClick={()=>setPg("team")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
       {[{n:"Sahil",d:5,r:"₹2.1L",rt:"1.2h"},{n:"Rahul",d:2,r:"₹55K",rt:"3.1h"},{n:"Priya",d:1,r:"₹35K",rt:"2.8h"}].map((m,i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<2?"1px solid "+T.bd:"none"}}>
@@ -801,7 +890,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
 
     {/* Campaigns Mini */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Campaigns</div><span onClick={()=>setPg("campaigns")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
       {[{n:"Astrologer · Delhi",s:"live",rd:74,sn:120},{n:"Clinics · Multi",s:"done",rd:52,sn:80},{n:"Restaurants",s:"paused",rd:28,sn:45}].map((c,i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<2?"1px solid "+T.bd:"none"}}>
@@ -815,7 +904,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
 
   {/* Row 4: Recent Activity + Notes */}
   <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:18}}>Recent Activity</div>
       {[{t:"2:38 PM",m:"5 reports generated",c:T.gn},{t:"2:37 PM",m:"WhatsApp: Sharma Astrology opened 5×",c:T.yw},{t:"2:36 PM",m:"Reply from Delhi Dental Care",c:T.acc},{t:"2:35 PM",m:"Payment ₹35K recorded — GreenLeaf",c:T.gn},{t:"2:30 PM",m:"Campaign paused: Restaurant Mumbai",c:T.yw}].map((a,i)=>(
         <div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:i<4?"1px solid "+T.bd:"none",alignItems:"flex-start"}}>
@@ -824,7 +913,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         </div>
       ))}
     </div>
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:18}}>Upcoming Tasks</div>
       {[{t:"Follow up Sharma Astrology",due:"Today 4 PM",who:"Rahul",c:T.rd},{t:"Call Delhi Dental Care",due:"Today 5 PM",who:"Sahil",c:T.acc},{t:"Send proposal Pure Ayurveda",due:"Tomorrow",who:"Priya",c:T.bl},{t:"Campaign review — Restaurants",due:"Tomorrow",who:"Sahil",c:T.yw}].map((task,i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<3?"1px solid "+T.bd:"none"}}>
@@ -879,7 +968,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     })}
   </div>}
 
-  {pipeView==="table"&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,overflow:"hidden",boxShadow:T.sh}}>
+  {pipeView==="table"&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,overflow:"hidden",boxShadow:T.sh}}>
     <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Lead","Score","LS","Stage","Views","Revenue","Owner"].map(h=><th key={h} style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,padding:"14px 18px",textAlign:"left",borderBottom:"1.5px solid "+T.bd,background:dk?T.el:T.ra}}>{h}</th>)}</tr></thead>
     <tbody>{allLeads.sort((a,b)=>STG.indexOf(a.stage)-STG.indexOf(b.stage)).map((d,i)=><tr key={i} onClick={()=>setDet(d)} style={{cursor:"pointer"}}><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd}}><div style={{fontSize:13,fontWeight:600}}>{d.name}</div><div style={{fontSize:11,color:T.txM,marginTop:2}}>{d.type} · {d.city}</div></td><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd}}><span style={{fontSize:18,fontWeight:800,color:scC(d.score)}}>{d.score}</span></td><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd}}>{B(d.ls,d.ls>80?T.acc:T.yw)}</td><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd}}>{B(SL[d.stage],SC2[d.stage])}</td><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd,color:d.views>3?T.gn:d.views>0?T.yw:T.txF,fontWeight:600}}>{d.views||"—"}{d.views>=3&&" 🔥"}</td><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd,fontWeight:700,color:T.acc}}>₹{d.loss}</td><td style={{padding:"14px 18px",borderBottom:"1px solid "+T.bd,color:T.txS,fontSize:12}}>{d.owner||"—"}</td></tr>)}</tbody></table>
   </div>}
@@ -891,13 +980,13 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   {isGen&&<div style={{height:6,background:T.el,borderRadius:6,overflow:"hidden",border:"1px solid "+T.bd}}><div style={{width:genP+"%",height:"100%",background:accG,borderRadius:6,transition:"width .5s"}}/></div>}
   <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 360px",gap:24}}>
     <div style={{display:"flex",flexDirection:"column",gap:18}}>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Configuration</div>
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
           {[["Template",<select key="t" style={IS}>{tmpls.filter(x=>x.active).map(x=><option key={x.id}>{x.name} v{x.ver}</option>)}</select>],["AI Mode",<select key="a" style={IS}><option>Light</option><option>Deep</option><option>Off</option></select>],["Output",<select key="o" style={IS}><option>HTML + PDF</option><option>HTML</option><option>PDF</option></select>]].map(([l,el],i)=><div key={i}><div style={{fontSize:13,fontWeight:500,color:T.txM,marginBottom:10}}>{l}</div>{el}</div>)}
         </div>
       </div>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Filters</div>
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
           <div><div style={{fontSize:13,fontWeight:500,color:T.txM,marginBottom:10}}>Category</div><select value={cmdCat} onChange={e=>setCmdCat(e.target.value)} style={IS}>{CATS.map(c=><option key={c}>{c}</option>)}</select></div>
@@ -905,7 +994,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
           <div><div style={{fontSize:13,fontWeight:500,color:T.txM,marginBottom:10}}>Batch Size</div><input type="number" value={batch} onChange={e=>setBatch(Math.max(1,Math.min(50,+e.target.value||1)))} style={IS}/></div>
         </div>
       </div>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Auto-Delivery</div>
         <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
           <Check label="📤 WhatsApp" checked={autoWA} onChange={()=>setAutoWA(!autoWA)}/>
@@ -915,7 +1004,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       </div>
       <button onClick={runGen} disabled={isGen||!queue.length} style={{padding:"18px 36px",borderRadius:16,border:"none",background:(isGen||!queue.length)?T.bd:accG,color:(isGen||!queue.length)?T.txM:"#fff",fontSize:16,fontWeight:700,cursor:(isGen||!queue.length)?"not-allowed":"pointer",fontFamily:ff,boxShadow:(isGen||!queue.length)?"none":`0 6px 28px ${T.acc}33`,textAlign:"center",animation:(!isGen&&queue.length)?"glow 2s infinite":"none"}}>{isGen?`${Math.round(genP)}%`:`🚀 Generate + Send ${queue.length} Reports`}</button>
     </div>
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:24,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:20}}>Queue · {queue.length} leads</div>
       <div style={{maxHeight:500,overflow:"auto"}}>{queue.map((d,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0",borderBottom:"1px solid "+T.bd}}><span style={{fontSize:20,fontWeight:800,color:scC(d.score),width:34,textAlign:"center"}}>{d.score}</span><div style={{flex:1}}><div style={{fontSize:13.5,fontWeight:600}}>{d.name}</div><div style={{fontSize:11,color:T.txM,marginTop:3}}>{d.url} · {d.city}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:700,color:T.acc}}>₹{d.loss}</div><div style={{fontSize:10,color:T.pr,marginTop:2}}>LS:{d.ls}</div></div></div>)}</div>
     </div>
@@ -926,7 +1015,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
 {pg==="leads"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>
   <h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8}}>Leads ({filtered.length})</h1>
   {/* Advanced Search */}
-  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"18px 22px",boxShadow:T.sh}}>
+  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"18px 22px",boxShadow:T.sh}}>
     <input value={sr} onChange={e=>setSr(e.target.value)} placeholder="🔍 Search by name, URL, city, phone, owner, category, source…" style={{...IS,fontSize:15,padding:"14px 20px",borderRadius:14,background:dk?T.el:T.ra,border:"2px solid "+T.bd,width:"100%"}}/>
     {sr&&<div style={{fontSize:11,color:T.txM,marginTop:8}}>Searching across: name, website, city, phone, owner, category, source</div>}
   </div>
@@ -953,7 +1042,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
   </div>
   {/* Table */}
-  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,overflow:"hidden",boxShadow:T.sh}}>
+  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,overflow:"hidden",boxShadow:T.sh}}>
     <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Lead","Score","Lead Score","Stage","Views","Revenue","Source","Owner",""].map(h=><th key={h} style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,padding:"14px 18px",textAlign:"left",borderBottom:"1.5px solid "+T.bd,background:dk?T.el:T.ra}}>{h}</th>)}</tr></thead>
     <tbody>{filtered.map((d,i)=><tr key={i} onClick={()=>setDet(d)} style={{cursor:"pointer"}}>
       <td style={{padding:"16px 18px",borderBottom:"1px solid "+T.bd}}>
@@ -1002,7 +1091,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
             {B(t.used+"× used",T.acc)}
           </div>
         </div>
-        <div style={{padding:28}}>
+        <div style={{padding:24}}>
           <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>{t.name}</div>
           <p style={{fontSize:14,color:T.txS,lineHeight:1.7,marginBottom:22}}>{t.desc}</p>
           <div style={{display:"flex",gap:10}}>
@@ -1063,7 +1152,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   </div>
 
   {/* Add form */}
-  {addingBM&&<div style={{background:T.sf,border:"1px solid "+T.acc+"33",borderRadius:22,padding:28,boxShadow:T.sh}}>
+  {addingBM&&<div style={{background:T.sf,border:"1px solid "+T.acc+"33",borderRadius:18,padding:24,boxShadow:T.sh}}>
     <div style={{fontSize:14,fontWeight:700,marginBottom:18}}>Add New Bookmark</div>
     <div style={{marginBottom:14}}>
       <div style={{fontSize:12,fontWeight:600,color:T.txM,marginBottom:8}}>Choose Icon</div>
@@ -1109,7 +1198,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
     <div><h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Sheet Data</h1><p style={{fontSize:14,color:T.txS}}>Live view of your Google Sheet — read only</p></div>
     <div style={{display:"flex",gap:8}}>
-      <button onClick={async()=>{showT("🔄 Syncing...");if(!DEMO){const r=await apiCall("/sheets/sync",{method:"POST"});showT("✅ Synced "+(r?.synced||0)+" leads");await reloadLeads()}else showT("🔄 Refreshed!")}} style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Sync Now</button>
+      <button onClick={async()=>{showT("🔄 Syncing from Google Sheet...");const d=await fetchGoogleSheet();if(d&&d.length>0){setAllLeads(d);showT("✅ Synced "+d.length+" leads from Sheet!")}else{showT("❌ Sync failed — check sheet is public")}}} style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Sync Now</button>
       {sheetUrl&&<a href={sheetUrl} target="_blank" rel="noreferrer" style={{padding:"10px 20px",borderRadius:12,border:"none",background:accG,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>↗ Open in Sheets</a>}
     </div>
   </div>
@@ -1127,7 +1216,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     ))}
   </div>
   {/* Sheet content */}
-  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,overflow:"hidden",boxShadow:T.sh}}>
+  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,overflow:"hidden",boxShadow:T.sh}}>
     {sheetTab==="leads"&&<div style={{overflow:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",minWidth:1200}}>
         <thead><tr>
@@ -1161,14 +1250,14 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         ))}</tbody>
       </table>
     </div>}
-    {sheetTab==="config"&&<div style={{padding:28}}>
+    {sheetTab==="config"&&<div style={{padding:24}}>
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:1}}>
         {[["google_sheet_id","1abc…xyz"],["sheet_tab_leads","Sheet1"],["drive_folder_html","folder_html_id"],["drive_folder_pdf","folder_pdf_id"],["default_template","premium-v1"],["default_ai_mode","LIGHT"],["rate_limit_rpm","10"],["retry_max","3"],["pdf_service","gotenberg"],["skip_unsafe_sites","true"],["dry_run_mode","false"],["ai_model","claude-sonnet-4-5"],["ai_max_tokens","2000"],["ai_temperature","0.3"],["wa_provider","WA Business API"],["wa_rate_limit","50/hour"],["timezone","Asia/Kolkata"]].map(([k,v],i)=>(
           <div key={i} style={{display:"contents"}}><div style={{padding:"12px 16px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:12,fontWeight:600,color:T.txS,fontFamily:"monospace"}}>{k}</div><div style={{padding:"12px 16px",border:"1px solid "+T.bd,fontSize:13,color:T.tx}}>{v}</div></div>
         ))}
       </div>
     </div>}
-    {sheetTab==="templates"&&<div style={{padding:28}}>
+    {sheetTab==="templates"&&<div style={{padding:24}}>
       <div style={{display:"grid",gridTemplateColumns:"150px 100px 80px 1fr",gap:1}}>
         <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>template_id</div>
         <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>version</div>
@@ -1179,7 +1268,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         ))}
       </div>
     </div>}
-    {sheetTab==="logs"&&<div style={{padding:28}}>
+    {sheetTab==="logs"&&<div style={{padding:24}}>
       <div style={{display:"grid",gridTemplateColumns:"120px 80px 80px 1fr",gap:1}}>
         <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>timestamp</div>
         <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>level</div>
@@ -1200,7 +1289,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   {pg==="tracking"&&<>
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
       {[{l:"Total Views",v:"156",c:T.yw,s:"all reports"},{l:"Unique Opens",v:"31",c:T.bl,s:"66% open rate"},{l:"Hot Leads (3+)",v:"8",c:T.rd,s:"immediate follow-up"},{l:"Avg Time on Report",v:"3.2m",c:T.gn,s:"per session"},{l:"Never Opened",v:"16",c:T.txM,s:"needs re-send"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1210,7 +1299,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
     {/* Open rate by category */}
     <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Open Rate by Category</div>
         {[["Clinic","78%",T.gn,78],["Astrologer","62%",T.acc,62],["Restaurant","45%",T.yw,45],["Real Estate","71%",T.bl,71],["Ecommerce","38%",T.rd,38]].map(([c,r,cl,w],i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
@@ -1220,7 +1309,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
           </div>
         ))}
       </div>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>View Heatmap (by Time)</div>
         <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(6,1fr)",gap:4}}>
           {["9AM","10AM","11AM","12PM","1PM","2PM","3PM","4PM","5PM","6PM","7PM","8PM"].map((t2,i)=>{const intensity=[20,45,80,60,30,55,90,75,40,25,15,10][i];return(
@@ -1234,7 +1323,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       </div>
     </div>
     {/* Live feed */}
-    <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+    <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:22}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Live View Feed</div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}><div style={{width:8,height:8,borderRadius:4,background:T.rd,animation:"pulse 1.5s infinite"}}/><span style={{fontSize:11,color:T.rd,fontWeight:600}}>Live</span></div>
@@ -1273,7 +1362,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
       {[{l:"Revenue MTD",v:"₹2,40,000",c:T.gn,s:"6 deals closed"},{l:"Pipeline Value",v:"₹12.6L",c:T.bl,s:"34 leads in pipe"},{l:"Avg Deal Size",v:"₹40,000",c:T.acc,s:"across all deals"},{l:"Conversion Rate",v:"4.2%",c:T.yw,s:"from reports sent"},{l:"Revenue/Send",v:"₹140",c:T.pr,s:"per WhatsApp msg"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>{k.l}</div>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1283,7 +1372,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
     {/* Revenue by category + source */}
     <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Revenue by Category</div>
         {[["Clinic","₹1,20,000",T.gn,80,3],["Astrologer","₹80,000",T.acc,53,2],["Restaurant","₹60,000",T.bl,40,1],["Real Estate","₹35,000",T.pk,23,1],["Ecommerce","₹0",T.txM,0,0]].map(([c,r,cl,w,deals],i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
@@ -1294,7 +1383,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
           </div>
         ))}
       </div>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Revenue by Lead Source</div>
         {[["Google Maps","₹1,60,000",T.gn,"67%","4.8% conv"],["Facebook Ads","₹55,000",T.bl,"23%","3.1% conv"],["Manual Lists","₹25,000",T.pr,"10%","2.2% conv"]].map(([src,rev,c,pct,conv],i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0",borderBottom:i<2?"1px solid "+T.bd:"none"}}>
@@ -1307,7 +1396,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
     {/* Deal History + Manual Payment */}
     <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Recent Deals</div>
         {[{n:"Delhi Dental Care",a:"₹35,000",d:"3 Mar",m:"UPI",cat:"Clinic"},{n:"GreenLeaf Properties",a:"₹35,000",d:"28 Feb",m:"Bank Transfer",cat:"Real Estate"},{n:"Sharma Astrology",a:"₹20,000",d:"25 Feb",m:"Cash",cat:"Astrologer"},{n:"Pure Ayurveda",a:"₹15,000",d:"22 Feb",m:"UPI",cat:"Clinic"}].map((deal,i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 0",borderBottom:i<3?"1px solid "+T.bd:"none"}}>
@@ -1317,7 +1406,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
           </div>
         ))}
       </div>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>💰 Record Manual Payment</div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <div><div style={{fontSize:12,color:T.txM,marginBottom:6}}>Lead Name</div><select style={IS}>{allLeads.map(l=><option key={l.id}>{l.name}</option>)}</select></div>
@@ -1331,7 +1420,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       </div>
     </div>
     {/* AI Insights */}
-    <div className="hov" style={{background:`linear-gradient(135deg,${T.acc}06,${T.pr}06)`,border:"1px solid "+T.acc+"18",borderRadius:22,padding:28,boxShadow:T.sh}}>
+    <div className="hov" style={{background:`linear-gradient(135deg,${T.acc}06,${T.pr}06)`,border:"1px solid "+T.acc+"18",borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{fontSize:11,fontWeight:600,color:T.acc,textTransform:"uppercase",letterSpacing:1.5,marginBottom:20}}>🤖 AI Revenue Insights</div>
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:12}}>
         {["📊 Clinics convert 3× better than Restaurants — shift budget there","🕐 Tuesday 11 AM sends get 2× more replies than Friday","📍 Delhi leads close 40% faster than Mumbai leads","💡 Score < 30 leads convert at 8% — they NEED your services","🔥 Leads viewing 3+ times close at 35% — follow up IMMEDIATELY","📱 62% of report views on mobile — ensure mobile-perfect templates"].map((t,i)=>(
@@ -1340,7 +1429,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       </div>
     </div>
     {/* Expense Tracker */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>💸 Ad Spend vs Revenue (ROI Tracker)</div>
         <button onClick={()=>showT("➕ Add expense entry")} style={{padding:"8px 16px",borderRadius:10,border:"1px solid "+T.bd,background:T.sf,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>+ Add Expense</button>
@@ -1375,7 +1464,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       </div>
     </div>
     {/* AI WhatsApp Briefing Config */}
-    <div className="hov" style={{background:`linear-gradient(135deg,${T.acc}06,${T.pr}04)`,border:"1px solid "+T.acc+"18",borderRadius:22,padding:28}}>
+    <div className="hov" style={{background:`linear-gradient(135deg,${T.acc}06,${T.pr}04)`,border:"1px solid "+T.acc+"18",borderRadius:18,padding:24}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
         <div style={{display:"flex",gap:12,alignItems:"center"}}>
           <div style={{width:42,height:42,borderRadius:14,background:accG,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🤖</div>
@@ -1400,7 +1489,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     {/* Campaign KPIs */}
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
       {[{l:"Total Sent",v:"245",c:T.bl},{l:"Delivered",v:"240",c:T.bl,s:"98%"},{l:"Read",v:"154",c:T.yw,s:"63%"},{l:"Replied",v:"25",c:T.gn,s:"10.2%"},{l:"Opt-out",v:"3",c:T.rd,s:"1.2%"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>{k.l}</div>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1414,7 +1503,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       {n:"Clinic Cold Reach — Pune + Delhi",s:"done",tpl:"Clinic Intro v1",sn:80,dl:78,rd:52,rp:8,optout:2,created:"Yesterday 11 AM",schedule:"Completed",rate:"50/hr"},
       {n:"Restaurant Deep Push — Mumbai",s:"paused",tpl:"Restaurant Urgency v1",sn:45,dl:44,rd:28,rp:3,optout:0,created:"2 days ago",schedule:"Paused by admin",rate:"30/hr"},
     ].map((c,i)=>(
-      <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:0,boxShadow:T.sh,overflow:"hidden"}}>
+      <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:0,boxShadow:T.sh,overflow:"hidden"}}>
         {/* Campaign header */}
         <div style={{padding:"22px 28px",borderBottom:"1px solid "+T.bd,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
@@ -1466,7 +1555,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     {/* Team KPIs */}
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
       {[{l:"Team Revenue",v:"₹2.4L",c:T.gn,s:"this month"},{l:"Deals Closed",v:"8",c:T.acc,s:"by all members"},{l:"Avg Response",v:"2.4h",c:T.yw,s:"time to first reply"},{l:"Active Leads",v:"10",c:T.bl,s:"in pipeline"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>{k.l}</div>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1480,7 +1569,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       {n:"Rahul",role:"Sales Executive",leads:4,active:3,deals:2,rev:"₹55,000",conv:"8.3%",avgTime:"3.1h",tasks:[{t:"Call Sharma Astrology",due:"Today"},{t:"WhatsApp Spice Route",due:"Today"}]},
       {n:"Priya",role:"Sales Executive",leads:3,active:2,deals:1,rev:"₹35,000",conv:"5.5%",avgTime:"2.8h",tasks:[{t:"Send report to Pure Ayurveda",due:"Today"},{t:"Follow up GreenLeaf",due:"Tomorrow"}]},
     ].map((m,i)=>(
-      <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:0,boxShadow:T.sh,overflow:"hidden"}}>
+      <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:0,boxShadow:T.sh,overflow:"hidden"}}>
         <div style={{padding:"22px 28px",borderBottom:"1px solid "+T.bd,display:"flex",alignItems:"center",gap:16}}>
           <div style={{width:52,height:52,borderRadius:16,background:accG,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:"#fff"}}>{m.n[0]}</div>
           <div style={{flex:1}}><div style={{fontSize:18,fontWeight:700}}>{m.n}</div><div style={{fontSize:13,color:T.txM,marginTop:2}}>{m.role}</div></div>
@@ -1522,9 +1611,9 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     ))}
   </>}
 
-  {pg==="sequences"&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>{[{n:"Standard 5-Day",st:5,ac:34,rt:"15%"},{n:"Aggressive 3-Day",st:3,ac:12,rt:"20%"}].map((s,i)=><div key={i} className="hov" style={{padding:20,background:T.el,borderRadius:18,border:"1px solid "+T.bd,marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:16,fontWeight:600}}>{s.n}</div>{B(s.rt,T.gn)}</div><div style={{fontSize:13,color:T.txM}}>{s.st} steps · {s.ac} active</div></div>)}</div>}
+  {pg==="sequences"&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>{[{n:"Standard 5-Day",st:5,ac:34,rt:"15%"},{n:"Aggressive 3-Day",st:3,ac:12,rt:"20%"}].map((s,i)=><div key={i} className="hov" style={{padding:20,background:T.el,borderRadius:18,border:"1px solid "+T.bd,marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:16,fontWeight:600}}>{s.n}</div>{B(s.rt,T.gn)}</div><div style={{fontSize:13,color:T.txM}}>{s.st} steps · {s.ac} active</div></div>)}</div>}
 
-  {pg==="sequences"&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:28,boxShadow:T.sh}}>{[{n:"Standard 5-Day",st:5,ac:34,rt:"15%"},{n:"Aggressive 3-Day",st:3,ac:12,rt:"20%"}].map((s,i)=><div key={i} className="hov" style={{padding:20,background:T.el,borderRadius:18,border:"1px solid "+T.bd,marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:16,fontWeight:600}}>{s.n}</div>{B(s.rt,T.gn)}</div><div style={{fontSize:13,color:T.txM}}>{s.st} steps · {s.ac} active</div></div>)}</div>}
+  {pg==="sequences"&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>{[{n:"Standard 5-Day",st:5,ac:34,rt:"15%"},{n:"Aggressive 3-Day",st:3,ac:12,rt:"20%"}].map((s,i)=><div key={i} className="hov" style={{padding:20,background:T.el,borderRadius:18,border:"1px solid "+T.bd,marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:16,fontWeight:600}}>{s.n}</div>{B(s.rt,T.gn)}</div><div style={{fontSize:13,color:T.txM}}>{s.st} steps · {s.ac} active</div></div>)}</div>}
 
   {/* ═══ AUTOMATIONS HUB ═══ */}
   {pg==="automations"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
@@ -1533,7 +1622,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     {/* KPIs */}
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
       {[{l:"Today Incoming",v:"23",c:T.bl,s:"from all sources"},{l:"Auto-Sent",v:"21",c:T.gn,s:"WhatsApp + Email"},{l:"Drips Active",v:"34",c:T.acc,s:"across all campaigns"},{l:"Auto-Replied",v:"5",c:T.pr,s:"drip stopped"},{l:"Sources Active",v:autoRules.filter(r=>r.enabled).length.toString(),c:T.gn,s:"of "+autoRules.length}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"22px 18px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"22px 18px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
           <div style={{fontSize:28,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1552,7 +1641,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         </div>
 
         {autoRules.map((rule,i)=>(
-          <div key={rule.id} className="hov" style={{background:T.sf,border:"1px solid "+(rule.enabled?T.bd:T.rd+"22"),borderRadius:22,overflow:"hidden",boxShadow:T.sh,opacity:rule.enabled?1:.6}}>
+          <div key={rule.id} className="hov" style={{background:T.sf,border:"1px solid "+(rule.enabled?T.bd:T.rd+"22"),borderRadius:18,overflow:"hidden",boxShadow:T.sh,opacity:rule.enabled?1:.6}}>
             {/* Rule Header */}
             <div style={{padding:"20px 24px",borderBottom:"1px solid "+T.bd,display:"flex",alignItems:"center",gap:14}}>
               <div style={{width:42,height:42,borderRadius:14,background:rule.source==="Meta Ads"?T.bl+"12":rule.source==="Google Ads"?T.gn+"12":rule.source==="Website Form"?T.acc+"12":rule.source==="Landing Page"?T.pr+"12":T.txM+"12",border:"1px solid "+(rule.source==="Meta Ads"?T.bl+"22":rule.source==="Google Ads"?T.gn+"22":T.acc+"22"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
@@ -1637,7 +1726,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
             <div style={{width:8,height:8,borderRadius:4,background:T.gn,animation:"pulse 1.5s infinite"}}/>
           </div>
         </div>
-        <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,boxShadow:T.sh,overflow:"hidden"}}>
+        <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,boxShadow:T.sh,overflow:"hidden"}}>
           {autoLive.map((lead,i)=>(
             <div key={lead.id} className="hov" style={{padding:"18px 22px",borderBottom:"1px solid "+T.bd,display:"flex",gap:14,alignItems:"flex-start",animation:`slideIn .3s ease ${i*.08}s both`}}>
               <div style={{width:40,height:40,borderRadius:14,background:lead.source==="Meta Ads"?T.bl+"12":lead.source==="Google Ads"?T.gn+"12":T.acc+"12",border:"1px solid "+(lead.source==="Meta Ads"?T.bl+"22":lead.source==="Google Ads"?T.gn+"22":T.acc+"22"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
@@ -1701,7 +1790,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
       {[{l:"Total Requests",v:"247",c:T.bl,s:"all time"},{l:"Leads Found",v:"1,842",c:T.gn,s:"across all hunts"},{l:"Active Now",v:"2",c:T.acc,s:"running"},{l:"Avg Leads/Hunt",v:"38",c:T.pr,s:"per request"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1712,7 +1801,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     {/* New Request + History side by side */}
     <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:18}}>
       {/* New Request Form */}
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:28,boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:accG}}/>
         <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>New Request</div>
         <div style={{display:"flex",background:dk?T.el:T.ra,borderRadius:14,padding:4,gap:4,marginBottom:22}}>
@@ -1724,7 +1813,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         <button onClick={()=>showT("🚀 Lead hunt started!")} style={{width:"100%",padding:18,borderRadius:14,border:"none",background:accG,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:ff,animation:"glow 2s infinite"}}>🚀 Start Lead Hunt</button>
       </div>
       {/* Request History */}
-      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:28,boxShadow:T.sh}}>
+      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>Request History</div>
         {[
           {kw:"interior designer",loc:"Delhi",type:"city",leads:142,status:"completed",time:"2h ago"},
@@ -1759,7 +1848,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
       {[{l:"Searches Done",v:"84",c:T.pr,s:"all time"},{l:"Ads Found",v:"2,156",c:T.bl,s:"total results"},{l:"Competitors",v:"312",c:T.acc,s:"unique domains"},{l:"Active Ads",v:"89%",c:T.gn,s:"currently live"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
@@ -1769,7 +1858,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
     <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:18}}>
       {/* Search Form */}
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:28,boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${T.pr},${T.yw},transparent)`}}/>
         <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>New Search</div>
         <div style={{marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8}}>Keyword / Service</div><input placeholder="e.g. advocate, digital marketing, hospital" style={IS}/></div>
@@ -1779,7 +1868,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         <button onClick={()=>showT("🔍 Searching competitor ads…")} style={{width:"100%",padding:18,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.pr},#a78bfa)`,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:ff}}>🔍 Find Competitor Ads</button>
       </div>
       {/* Search History */}
-      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:28,boxShadow:T.sh}}>
+      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh}}>
         <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>Search History</div>
         {[
           {kw:"advocate",loc:"Delhi",n:24,status:"completed",time:"1h ago",industry:"Legal"},
@@ -1875,7 +1964,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         </div>
 
         {/* Active tasks */}
-        <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:22,boxShadow:T.sh}}>
+        <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:22,boxShadow:T.sh}}>
           <div style={{fontSize:12,fontWeight:600,color:T.txM,marginBottom:14}}>Active</div>
           {npTodos.filter(t=>!t.done).map(todo=>(
             <div key={todo.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+T.bd}}>
@@ -1891,7 +1980,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         </div>
 
         {/* Completed tasks */}
-        {npTodos.filter(t=>t.done).length>0&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:22,boxShadow:T.sh}}>
+        {npTodos.filter(t=>t.done).length>0&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:22,boxShadow:T.sh}}>
           <div style={{fontSize:12,fontWeight:600,color:T.txM,marginBottom:14}}>Completed ({npTodos.filter(t=>t.done).length})</div>
           {npTodos.filter(t=>t.done).map(todo=>(
             <div key={todo.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid "+T.bd,opacity:.5}}>
@@ -1908,9 +1997,9 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
   </div>}
 
-  {pg==="settings"&&<div style={{maxWidth:mob?"100%":800}}>
+  {pg==="settings"&&<div style={{maxWidth:mob?"100%":900}}>
     {/* Google Sheets Config - with URL */}
-    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
       <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>Google Sheets</div>
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:"1px solid "+T.bd}}>
         <span style={{fontSize:14,color:T.txS,fontWeight:600}}>Sheet URL</span>
@@ -1923,7 +2012,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
     {/* Other settings */}
     {[{h:"WhatsApp API",r:[["Provider","WA Business API"],["API Key","••••••••"],["Phone Number","+91-XXXXXXXXXX"],["Rate Limit","50/hour"]]},{h:"Report Engine",r:[["Default Template","premium-v1"],["Rate Limit","10/min"],["Workers","3"]]},{h:"AI Configuration",r:[["Model","claude-sonnet-4-5"],["Max Tokens","2000"],["Daily Cap","₹500"]]}].map((s,si)=>(
-      <div key={si} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
+      <div key={si} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
         <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>{s.h}</div>
         {s.r.map(([k,v],i)=><div key={i} style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:i<s.r.length-1?"1px solid "+T.bd:"none"}}><span style={{fontSize:14,color:T.txS}}>{k}</span><input defaultValue={v} style={IS}/></div>)}
       </div>
