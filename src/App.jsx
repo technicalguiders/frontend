@@ -139,6 +139,19 @@ useState(()=>{const h=()=>setMob(window.innerWidth<768);window.addEventListener(
 const[allLeads,setAllLeads]=useState(LD);
 const[det,setDet]=useState(null);
 const[loading,setLoading]=useState(false);
+// n8n Webhook URLs
+const[n8nMaps,setN8nMaps]=useState("");
+const[n8nAds,setN8nAds]=useState("");
+const[engineKw,setEngineKw]=useState("");
+const[engineLoc,setEngineLoc]=useState("Delhi");
+const[engineQty,setEngineQty]=useState(60);
+const[engineSending,setEngineSending]=useState(false);
+const[adKw,setAdKw]=useState("");
+const[adLoc,setAdLoc]=useState("Delhi");
+const[adSending,setAdSending]=useState(false);
+// Live request data from sheets
+const[formRequests,setFormRequests]=useState(null);
+const[adsRequests,setAdsRequests]=useState(null);
 
 // API data loader
 const reloadLeads=useCallback(async()=>{
@@ -1834,117 +1847,98 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
   </div>}
 
-  {pg==="engine"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
-    {/* Header */}
+  {pg==="engine"&&<div style={{display:"flex",flexDirection:"column",gap:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div><h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Lead Engine</h1><p style={{fontSize:14,color:T.txS}}>Google Maps grid-based lead scraper</p></div>
+      <div><h1 style={{fontSize:26,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Lead Engine</h1><p style={{fontSize:13,color:T.txM}}>Google Maps lead scraper → n8n automation</p></div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <div style={{padding:"8px 16px",borderRadius:10,background:T.gn+"0A",border:"1px solid "+T.gn+"18",fontSize:12,fontWeight:600,color:T.gn}}>● Connected</div>
+        {n8nMaps?<span style={{padding:"6px 14px",borderRadius:8,background:T.gn+"0A",border:"1px solid "+T.gn+"18",fontSize:11,fontWeight:600,color:T.gn}}>● n8n Connected</span>:<span style={{padding:"6px 14px",borderRadius:8,background:T.rd+"0A",border:"1px solid "+T.rd+"18",fontSize:11,fontWeight:600,color:T.rd}}>⚠ Set webhook in Settings</span>}
       </div>
     </div>
-    {/* Stats */}
-    <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
-      {[{l:"Total Requests",v:"247",c:T.bl,s:"all time"},{l:"Leads Found",v:"1,842",c:T.gn,s:"across all hunts"},{l:"Active Now",v:"2",c:T.acc,s:"running"},{l:"Avg Leads/Hunt",v:"38",c:T.pr,s:"per request"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
-          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
-          <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
-          <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
-          <div style={{fontSize:12,color:T.txM,marginTop:8}}>{k.s}</div>
-        </div>
-      ))}
-    </div>
-    {/* New Request + History side by side */}
-    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:18}}>
-      {/* New Request Form */}
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:accG}}/>
-        <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>New Request</div>
-        <div style={{display:"flex",background:dk?T.el:T.ra,borderRadius:14,padding:4,gap:4,marginBottom:22}}>
-          {["city","state"].map(v=><button key={v} onClick={()=>setLt(v)} style={{flex:1,padding:12,borderRadius:10,border:"none",fontSize:13,fontWeight:600,fontFamily:ff,cursor:"pointer",background:lt===v?T.sf:"transparent",color:lt===v?T.tx:T.txM,boxShadow:lt===v?T.sh:"none"}}>{v==="city"?"🏙 City":"🗺 State"}</button>)}
-        </div>
-        <div style={{marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8,display:"flex",alignItems:"center",gap:6}}><div style={{width:6,height:6,borderRadius:3,background:T.acc}}/>{lt==="city"?"City":"State"}</div><select style={IS}><option value="">Select {lt}…</option>{(lt==="city"?CITIES:STATES).map(c=><option key={c}>{c}</option>)}</select></div>
-        <div style={{marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8,display:"flex",alignItems:"center",gap:6}}><div style={{width:6,height:6,borderRadius:3,background:T.acc}}/>Keyword</div><input placeholder="e.g. interior designer, hospital, gym" style={IS}/></div>
-        <div style={{borderTop:"1px solid "+T.bd,paddingTop:18,marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8,display:"flex",alignItems:"center",gap:6}}><div style={{width:6,height:6,borderRadius:3,background:T.acc}}/>N8N Webhook</div><input placeholder="https://n8n.example.com/webhook/maps" style={IS}/><div style={{fontSize:10.5,color:T.txF,marginTop:6}}>💾 Auto-saved after first use</div></div>
-        <button onClick={()=>showT("🚀 Lead hunt started!")} style={{width:"100%",padding:18,borderRadius:14,border:"none",background:accG,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:ff,animation:"glow 2s infinite"}}>🚀 Start Lead Hunt</button>
+    {/* Form */}
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+        <div style={{fontSize:15,fontWeight:700,marginBottom:20}}>New Request</div>
+        <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Keyword</div><input value={engineKw} onChange={e=>setEngineKw(e.target.value)} placeholder="e.g. interior designer, hospital, gym" style={IS}/></div>
+        <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Location</div><select value={engineLoc} onChange={e=>setEngineLoc(e.target.value)} style={IS}>{CITIES.map(c=><option key={c}>{c}</option>)}</select></div>
+        <div style={{marginBottom:20}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Quantity</div><input type="number" value={engineQty} onChange={e=>setEngineQty(e.target.value)} style={{...IS,width:120}}/></div>
+        <button disabled={!engineKw||!n8nMaps||engineSending} onClick={async()=>{
+          if(!n8nMaps){showT("⚠ Set n8n Maps webhook URL in Settings first");return}
+          setEngineSending(true);
+          try{
+            const r=await fetch(n8nMaps,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({keyword:engineKw,location:engineLoc,quantity:parseInt(engineQty)||60})});
+            if(r.ok){showT("🚀 Lead hunt started! "+engineKw+" in "+engineLoc);setEngineKw("")}
+            else showT("❌ Failed — check n8n webhook")
+          }catch(e){showT("❌ Error: "+e.message)}
+          setEngineSending(false);
+        }} style={{width:"100%",padding:16,borderRadius:14,border:"none",background:(!engineKw||!n8nMaps)?"#555":accG,color:"#fff",fontSize:15,fontWeight:700,cursor:(!engineKw||!n8nMaps)?"not-allowed":"pointer",fontFamily:ff,opacity:engineSending?.6:1}}>
+          {engineSending?"⏳ Sending...":"🚀 Start Lead Hunt"}
+        </button>
+        {!n8nMaps&&<div style={{marginTop:12,padding:12,borderRadius:10,background:T.yw+"0A",border:"1px solid "+T.yw+"18",fontSize:12,color:T.yw}}>⚠ Go to Settings → set "n8n Maps Webhook URL" to connect</div>}
       </div>
-      {/* Request History */}
-      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh}}>
-        <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>Request History</div>
-        {[
-          {kw:"interior designer",loc:"Delhi",type:"city",leads:142,status:"completed",time:"2h ago"},
-          {kw:"astrologer",loc:"Rajasthan",type:"state",leads:89,status:"completed",time:"Yesterday"},
-          {kw:"hospital",loc:"Mumbai",type:"city",leads:0,status:"running",time:"Just now"},
-          {kw:"gym",loc:"Pune",type:"city",leads:67,status:"completed",time:"2 days ago"},
-          {kw:"advocate",loc:"Delhi",type:"city",leads:112,status:"completed",time:"3 days ago"},
-          {kw:"restaurant",loc:"Gujarat",type:"state",leads:0,status:"failed",time:"4 days ago"},
-        ].map((r,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 0",borderBottom:"1px solid "+T.bd}}>
-            <div style={{width:40,height:40,borderRadius:12,background:r.status==="completed"?T.gn+"0A":r.status==="running"?T.acc+"0A":T.rd+"0A",border:"1px solid "+(r.status==="completed"?T.gn+"18":r.status==="running"?T.acc+"18":T.rd+"18"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{r.status==="completed"?"✅":r.status==="running"?"⚡":"❌"}</div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:600}}>{r.kw}</div>
-              <div style={{fontSize:12,color:T.txM,marginTop:3}}>{r.loc} ({r.type}) · {r.time}</div>
-            </div>
-            <div style={{textAlign:"right"}}>
-              {r.status==="completed"&&<div style={{fontSize:16,fontWeight:800,color:T.gn}}>{r.leads}</div>}
-              {r.status==="running"&&<div style={{fontSize:12,fontWeight:600,color:T.acc,animation:"pulse 1.5s infinite"}}>Running…</div>}
-              {r.status==="failed"&&<div style={{fontSize:12,fontWeight:600,color:T.rd}}>Failed</div>}
-              <div style={{fontSize:10,color:T.txM,marginTop:2}}>{r.status==="completed"?"leads found":""}</div>
-            </div>
-          </div>
-        ))}
+      {/* Live Request History from Sheet */}
+      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:15,fontWeight:700}}>Request History</div>
+          <button onClick={async()=>{showT("🔄 Loading...");await fetchSheetTab("Form Request");setFormRequests(true)}} style={{padding:"6px 14px",borderRadius:8,border:"1px solid "+T.bd,background:T.sf,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Refresh</button>
+        </div>
+        {!sheetTabData["Form Request"]&&<div style={{padding:30,textAlign:"center",color:T.txM,fontSize:13}}>Click Refresh to load from Google Sheet</div>}
+        {sheetTabData["Form Request"]&&<div style={{maxHeight:400,overflow:"auto"}}>
+          {sheetTabData["Form Request"].rows.slice(-15).reverse().map((row,i)=>{
+            const kw=row[0]||"";const loc=row[1]||"";const status=(row[7]||"").toUpperCase();const done=row[8]||"0";
+            return(<div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+T.bd}}>
+              <div style={{width:36,height:36,borderRadius:10,background:status==="DONE"?T.gn+"0A":status==="PENDING"?T.acc+"0A":T.txF+"0A",border:"1px solid "+(status==="DONE"?T.gn:status==="PENDING"?T.acc:T.txF)+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{status==="DONE"?"✅":status==="PENDING"?"⏳":"📋"}</div>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{kw}</div><div style={{fontSize:11,color:T.txM,marginTop:2}}>{loc} · {status||"—"}</div></div>
+              <div style={{textAlign:"right",flexShrink:0}}>{status==="DONE"&&<div style={{fontSize:16,fontWeight:800,color:T.gn}}>{done}</div>}{status==="PENDING"&&<div style={{fontSize:11,color:T.acc,fontWeight:600}}>Processing</div>}<div style={{fontSize:10,color:T.txM}}>{status==="DONE"?"leads":""}</div></div>
+            </div>)
+          })}
+        </div>}
       </div>
     </div>
   </div>}
 
-  {pg==="adintel"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
+  {pg==="adintel"&&<div style={{display:"flex",flexDirection:"column",gap:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div><h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Ad Intelligence</h1><p style={{fontSize:14,color:T.txS}}>Discover competitor Google Ads campaigns</p></div>
+      <div><h1 style={{fontSize:26,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Ad Intelligence</h1><p style={{fontSize:13,color:T.txM}}>Google Ads competitor research → n8n + SerpAPI</p></div>
+      {n8nAds?<span style={{padding:"6px 14px",borderRadius:8,background:T.gn+"0A",border:"1px solid "+T.gn+"18",fontSize:11,fontWeight:600,color:T.gn}}>● n8n Connected</span>:<span style={{padding:"6px 14px",borderRadius:8,background:T.rd+"0A",border:"1px solid "+T.rd+"18",fontSize:11,fontWeight:600,color:T.rd}}>⚠ Set webhook in Settings</span>}
     </div>
-    {/* Stats */}
-    <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
-      {[{l:"Searches Done",v:"84",c:T.pr,s:"all time"},{l:"Ads Found",v:"2,156",c:T.bl,s:"total results"},{l:"Competitors",v:"312",c:T.acc,s:"unique domains"},{l:"Active Ads",v:"89%",c:T.gn,s:"currently live"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
-          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
-          <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
-          <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
-          <div style={{fontSize:12,color:T.txM,marginTop:8}}>{k.s}</div>
-        </div>
-      ))}
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:18}}>
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
       {/* Search Form */}
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${T.pr},${T.yw},transparent)`}}/>
-        <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>New Search</div>
-        <div style={{marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8}}>Keyword / Service</div><input placeholder="e.g. advocate, digital marketing, hospital" style={IS}/></div>
-        <div style={{marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8}}>Location</div><select style={IS}><option>Delhi</option>{CITIES.map(c=><option key={c}>{c}</option>)}</select></div>
-        <div style={{marginBottom:22}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:10}}>Industry</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{["All","Legal","Healthcare","Education","Real Estate","Tech","Marketing","Finance","Food"].map(c=><div key={c} onClick={()=>setAdI(c)} style={{padding:"8px 16px",borderRadius:20,fontSize:12,fontWeight:500,cursor:"pointer",background:adI===c?T.pr:T.el,color:adI===c?"#fff":T.txS,border:"1.5px solid "+(adI===c?T.pr:T.bd),transition:"all .2s"}}>{c}</div>)}</div></div>
-        <div style={{borderTop:"1px solid "+T.bd,paddingTop:18,marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8}}>Location Breakdown</div><div style={{display:"flex",gap:8}}>{[["City only",true],["State-wide",false],["Pan India",false]].map(([l,v],i)=><div key={i} style={{padding:"8px 16px",borderRadius:10,background:v?T.pr+"12":T.el,border:"1px solid "+(v?T.pr+"22":T.bd),fontSize:12,fontWeight:500,color:v?T.pr:T.txM,cursor:"pointer"}}>{l}</div>)}</div></div>
-        <button onClick={()=>showT("🔍 Searching competitor ads…")} style={{width:"100%",padding:18,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.pr},#a78bfa)`,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:ff}}>🔍 Find Competitor Ads</button>
+      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+        <div style={{fontSize:15,fontWeight:700,marginBottom:20}}>New Search</div>
+        <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Keyword / Service</div><input value={adKw} onChange={e=>setAdKw(e.target.value)} placeholder="e.g. advocate, digital marketing, hospital" style={IS}/></div>
+        <div style={{marginBottom:20}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Location</div><select value={adLoc} onChange={e=>setAdLoc(e.target.value)} style={IS}>{CITIES.map(c=><option key={c}>{c}</option>)}</select></div>
+        <button disabled={!adKw||!n8nAds||adSending} onClick={async()=>{
+          if(!n8nAds){showT("⚠ Set n8n Google Ads webhook URL in Settings first");return}
+          setAdSending(true);
+          try{
+            const r=await fetch(n8nAds,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:[{keyword:adKw,location:adLoc}]})});
+            if(r.ok){showT("🔍 Ad search queued! "+adKw+" in "+adLoc+" — n8n will process in 5 min");setAdKw("")}
+            else showT("❌ Failed — check n8n webhook")
+          }catch(e){showT("❌ Error: "+e.message)}
+          setAdSending(false);
+        }} style={{width:"100%",padding:16,borderRadius:14,border:"none",background:(!adKw||!n8nAds)?"#555":`linear-gradient(135deg,${T.pr},#a78bfa)`,color:"#fff",fontSize:15,fontWeight:700,cursor:(!adKw||!n8nAds)?"not-allowed":"pointer",fontFamily:ff,opacity:adSending?.6:1}}>
+          {adSending?"⏳ Sending...":"🔍 Find Competitor Ads"}
+        </button>
+        {!n8nAds&&<div style={{marginTop:12,padding:12,borderRadius:10,background:T.yw+"0A",border:"1px solid "+T.yw+"18",fontSize:12,color:T.yw}}>⚠ Go to Settings → set "n8n Google Ads Webhook URL" to connect</div>}
       </div>
-      {/* Search History */}
-      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,padding:24,boxShadow:T.sh}}>
-        <div style={{fontSize:16,fontWeight:700,marginBottom:22}}>Search History</div>
-        {[
-          {kw:"advocate",loc:"Delhi",n:24,status:"completed",time:"1h ago",industry:"Legal"},
-          {kw:"digital marketing agency",loc:"Mumbai",n:18,status:"completed",time:"3h ago",industry:"Marketing"},
-          {kw:"hospital",loc:"Pune",n:31,status:"completed",time:"Yesterday",industry:"Healthcare"},
-          {kw:"interior designer",loc:"Bangalore",n:0,status:"running",time:"Just now",industry:"Real Estate"},
-          {kw:"coaching center",loc:"Delhi",n:42,status:"completed",time:"2 days ago",industry:"Education"},
-        ].map((s,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 0",borderBottom:"1px solid "+T.bd}}>
-            <div style={{width:40,height:40,borderRadius:12,background:s.status==="completed"?T.pr+"0A":T.acc+"0A",border:"1px solid "+(s.status==="completed"?T.pr+"18":T.acc+"18"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{s.status==="completed"?"🔍":"⏳"}</div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:600}}>{s.kw}</div>
-              <div style={{display:"flex",gap:6,marginTop:4,alignItems:"center"}}>
-                {B(s.loc,T.pr)}
-                {B(s.industry,T.bl)}
-                <span style={{fontSize:11,color:T.txM}}>{s.time}</span>
-              </div>
-            </div>
-            {s.status==="completed"?<div style={{textAlign:"right"}}><div style={{fontSize:18,fontWeight:800,color:T.pr}}>{s.n}</div><div style={{fontSize:10,color:T.txM}}>ads found</div></div>:<div style={{fontSize:12,color:T.acc,fontWeight:600,animation:"pulse 1.5s infinite"}}>Running…</div>}
-          </div>
-        ))}
+      {/* Search History from Sheet */}
+      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:15,fontWeight:700}}>Search History</div>
+          <button onClick={async()=>{showT("🔄 Loading...");await fetchSheetTab("Google Ads Form Request");setAdsRequests(true)}} style={{padding:"6px 14px",borderRadius:8,border:"1px solid "+T.bd,background:T.sf,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Refresh</button>
+        </div>
+        {!sheetTabData["Google Ads Form Request"]&&<div style={{padding:30,textAlign:"center",color:T.txM,fontSize:13}}>Click Refresh to load from Google Sheet</div>}
+        {sheetTabData["Google Ads Form Request"]&&<div style={{maxHeight:400,overflow:"auto"}}>
+          {sheetTabData["Google Ads Form Request"].rows.slice(-15).reverse().map((row,i)=>{
+            const kw=row[0]||"";const loc=row[1]||"";const status=row[2]||"";const adsFound=row[3]||"";const lastSearch=row[4]||"";
+            const isDone=status.toLowerCase().includes("found")||status.toLowerCase().includes("done");
+            return(<div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+T.bd}}>
+              <div style={{width:36,height:36,borderRadius:10,background:isDone?T.pr+"0A":status.toLowerCase()==="pending"?T.acc+"0A":T.txF+"0A",border:"1px solid "+(isDone?T.pr:status.toLowerCase()==="pending"?T.acc:T.txF)+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{isDone?"🔍":status.toLowerCase()==="pending"?"⏳":"📋"}</div>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{kw}</div><div style={{fontSize:11,color:T.txM,marginTop:2}}>{loc} · {lastSearch||status}</div></div>
+              <div style={{textAlign:"right",flexShrink:0}}>{isDone&&<div style={{fontSize:16,fontWeight:800,color:T.pr}}>{adsFound}</div>}{status.toLowerCase()==="pending"&&<div style={{fontSize:11,color:T.acc,fontWeight:600}}>Queued</div>}<div style={{fontSize:10,color:T.txM}}>{isDone?"ads found":""}</div></div>
+            </div>)
+          })}
+        </div>}
       </div>
     </div>
   </div>}
@@ -2053,7 +2047,24 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   </div>}
 
   {pg==="settings"&&<div style={{maxWidth:mob?"100%":900}}>
-    {/* Google Sheets Config - with URL */}
+    {/* n8n Webhooks */}
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:mob?18:24,boxShadow:T.sh,marginBottom:16}}>
+      <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>n8n Automation Webhooks</div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:"1px solid "+T.bd}}>
+        <span style={{fontSize:14,color:T.txS,fontWeight:600}}>Maps Lead Engine</span>
+        <input value={n8nMaps} onChange={e=>setN8nMaps(e.target.value)} placeholder="https://your-n8n.com/webhook/maps-v14" style={{...IS,fontFamily:"monospace",fontSize:12}}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0"}}>
+        <span style={{fontSize:14,color:T.txS,fontWeight:600}}>Google Ads Finder</span>
+        <input value={n8nAds} onChange={e=>setN8nAds(e.target.value)} placeholder="https://your-n8n.com/webhook/google-ads-form" style={{...IS,fontFamily:"monospace",fontSize:12}}/>
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        {n8nMaps&&<span style={{padding:"4px 12px",borderRadius:6,background:T.gn+"12",color:T.gn,fontSize:10,fontWeight:600}}>● Maps Connected</span>}
+        {n8nAds&&<span style={{padding:"4px 12px",borderRadius:6,background:T.gn+"12",color:T.gn,fontSize:10,fontWeight:600}}>● Ads Connected</span>}
+        {!n8nMaps&&!n8nAds&&<span style={{fontSize:12,color:T.yw}}>⚠ Paste your n8n webhook URLs above</span>}
+      </div>
+    </div>
+    {/* Google Sheets Config */}
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
       <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>Google Sheets</div>
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:"1px solid "+T.bd}}>
