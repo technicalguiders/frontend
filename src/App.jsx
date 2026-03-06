@@ -217,6 +217,33 @@ const[bookmarks,setBookmarks]=useState([
 const[addingBM,setAddingBM]=useState(false);
 const[newBM,setNewBM]=useState({icon:"📌",name:"",url:"",cat:"General"});
 const[sheetTab,setSheetTab]=useState("leads");
+// Dynamic sheet tabs
+const SHEET_TABS=["Form Request","Google Ads Form Request","Ads Data","No Website","Website No Phone","Leads Website","Website Not Working","Audit Website","Credentials","Personal"];
+const[sheetTabData,setSheetTabData]=useState({});
+const[sheetTabLoading,setSheetTabLoading]=useState(false);
+
+async function fetchSheetTab(tabName){
+  try{
+    setSheetTabLoading(true);
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+    const res=await fetch(url);
+    if(!res.ok)throw new Error("Failed");
+    const csv=await res.text();
+    const lines=csv.split("\n").filter(l=>l.trim());
+    if(lines.length<1){setSheetTabLoading(false);return}
+    const parseRow=(line)=>{
+      const result=[];let cur="";let inQ=false;
+      for(let i=0;i<line.length;i++){const c=line[i];if(c==='"')inQ=!inQ;else if(c===','&&!inQ){result.push(cur.trim().replace(/^"|"$/g,""));cur=""}else cur+=c}
+      result.push(cur.trim().replace(/^"|"$/g,""));return result;
+    };
+    const headers=parseRow(lines[0]);
+    const rows=[];
+    for(let i=1;i<lines.length;i++){const vals=parseRow(lines[i]);if(vals.length>1)rows.push(vals)}
+    setSheetTabData(p=>({...p,[tabName]:{headers,rows}}));
+    showT("📊 "+rows.length+" rows loaded from "+tabName);
+    setSheetTabLoading(false);
+  }catch(e){console.error(e);showT("❌ Failed to load "+tabName);setSheetTabLoading(false)}
+}
 const[notes,setNotes]=useState({2:"Hot lead — called twice, interested in redesign",3:"Meeting scheduled 10 Mar",5:"Won! Payment received ₹35K"});
 const[newNote,setNewNote]=useState("");
 const[tagFilter,setTagFilter]=useState("all");
@@ -1194,91 +1221,76 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
 </div>}
 
 {/* ═══ GOOGLE SHEETS VIEWER ═══ */}
-{pg==="sheets"&&<div style={{display:"flex",flexDirection:"column",gap:20}}>
+{pg==="sheets"&&<div style={{display:"flex",flexDirection:"column",gap:16}}>
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-    <div><h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Sheet Data</h1><p style={{fontSize:14,color:T.txS}}>Live view of your Google Sheet — read only</p></div>
+    <div><h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Sheet Data</h1><p style={{fontSize:14,color:T.txS}}>Live view of your Google Sheet — all tabs</p></div>
     <div style={{display:"flex",gap:8}}>
-      <button onClick={async()=>{showT("🔄 Syncing from Google Sheet...");const d=await fetchGoogleSheet();if(d&&d.length>0){setAllLeads(d);showT("✅ Synced "+d.length+" leads from Sheet!")}else{showT("❌ Sync failed — check sheet is public")}}} style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Sync Now</button>
+      <button onClick={async()=>{showT("🔄 Syncing...");const d=await fetchGoogleSheet();if(d&&d.length>0){setAllLeads(d);showT("✅ "+d.length+" leads synced!")}}} style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Sync Leads</button>
       {sheetUrl&&<a href={sheetUrl} target="_blank" rel="noreferrer" style={{padding:"10px 20px",borderRadius:12,border:"none",background:accG,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>↗ Open in Sheets</a>}
     </div>
   </div>
-  {/* Connection Status */}
-  <div style={{display:"flex",gap:12,alignItems:"center",padding:"12px 18px",background:T.gn+"08",border:"1px solid "+T.gn+"18",borderRadius:16}}>
-    <div style={{width:10,height:10,borderRadius:5,background:T.gn,boxShadow:`0 0 8px ${T.gn}66`}}/>
-    <span style={{fontSize:13,color:T.gn,fontWeight:600}}>Connected</span>
-    <span style={{fontSize:12,color:T.txM}}>· Last synced: 2 min ago · {allLeads.length} rows</span>
-    <span style={{fontSize:12,color:T.txM,marginLeft:"auto"}}>Sheet URL configured in Settings</span>
+  {/* Status */}
+  <div style={{display:"flex",gap:12,alignItems:"center",padding:"10px 18px",background:T.gn+"08",border:"1px solid "+T.gn+"18",borderRadius:14}}>
+    <div style={{width:8,height:8,borderRadius:4,background:T.gn,boxShadow:`0 0 8px ${T.gn}66`}}/>
+    <span style={{fontSize:12,color:T.gn,fontWeight:600}}>Connected</span>
+    <span style={{fontSize:12,color:T.txM}}>· {allLeads.length} leads loaded · {SHEET_TABS.length} tabs available</span>
   </div>
-  {/* Tab bar */}
-  <div style={{display:"flex",gap:2,background:dk?T.el:T.ra,borderRadius:14,padding:4,border:"1px solid "+T.bd}}>
-    {[["leads","Leads (Main)"],["config","Config"],["templates","Templates"],["logs","Logs"]].map(([id,lb])=>(
-      <button key={id} onClick={()=>setSheetTab(id)} style={{flex:1,padding:"10px 16px",borderRadius:10,border:"none",fontSize:13,fontWeight:600,fontFamily:ff,cursor:"pointer",background:sheetTab===id?T.sf:"transparent",color:sheetTab===id?T.tx:T.txM,boxShadow:sheetTab===id?T.sh:"none",transition:"all .2s"}}>{lb}</button>
+  {/* Tab bar — scrollable */}
+  <div style={{display:"flex",gap:3,background:dk?T.el:T.ra,borderRadius:14,padding:4,border:"1px solid "+T.bd,overflowX:"auto"}}>
+    <button onClick={()=>setSheetTab("leads")} style={{padding:"9px 16px",borderRadius:10,border:"none",fontSize:12,fontWeight:600,fontFamily:ff,cursor:"pointer",whiteSpace:"nowrap",background:sheetTab==="leads"?T.acc:T.sf+"00",color:sheetTab==="leads"?"#fff":T.txM,boxShadow:sheetTab==="leads"?`0 2px 8px ${T.acc}33`:"none",transition:"all .2s"}}>Leads Data ({allLeads.length})</button>
+    {SHEET_TABS.map(tab=>(
+      <button key={tab} onClick={()=>{setSheetTab(tab);if(!sheetTabData[tab])fetchSheetTab(tab)}} style={{padding:"9px 16px",borderRadius:10,border:"none",fontSize:12,fontWeight:600,fontFamily:ff,cursor:"pointer",whiteSpace:"nowrap",background:sheetTab===tab?T.sf:"transparent",color:sheetTab===tab?T.tx:T.txM,boxShadow:sheetTab===tab?T.sh:"none",transition:"all .2s"}}>{tab}</button>
     ))}
   </div>
-  {/* Sheet content */}
+  {/* Content */}
   <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,overflow:"hidden",boxShadow:T.sh}}>
-    {sheetTab==="leads"&&<div style={{overflow:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse",minWidth:1200}}>
+    {/* Leads tab — shows parsed lead data */}
+    {sheetTab==="leads"&&<div style={{overflow:"auto",maxHeight:"70vh"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",minWidth:1400}}>
         <thead><tr>
-          {["#","lead_name","website","location","category","overall_score","mobile_score","seo_grade","risk_level","revenue_impact","lead_score","report_status","views","stage","owner","source","phone","cms_type","load_time","ssl"].map(h=>(
-            <th key={h} style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1,padding:"12px 14px",textAlign:"left",borderBottom:"2px solid "+T.bd,background:dk?T.el:T.ra,whiteSpace:"nowrap",position:"sticky",top:0}}>{h}</th>
+          {["#","Name","Website/URL","City","Category","Score","Phone","Source","Stage","Owner"].map(h=>(
+            <th key={h} style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1,padding:"12px 14px",textAlign:"left",borderBottom:"2px solid "+T.bd,background:dk?T.el:T.ra,whiteSpace:"nowrap",position:"sticky",top:0,zIndex:2}}>{h}</th>
           ))}
         </tr></thead>
         <tbody>{allLeads.map((d,i)=>(
-          <tr key={i} style={{borderBottom:"1px solid "+T.bd}}>
-            <td style={{padding:"10px 14px",fontSize:12,color:T.txM,fontFamily:"monospace"}}>{i+1}</td>
-            <td style={{padding:"10px 14px",fontSize:12.5,fontWeight:600}}>{d.name}</td>
-            <td style={{padding:"10px 14px",fontSize:12,color:T.bl,fontFamily:"monospace"}}>{d.url}</td>
+          <tr key={i} onClick={()=>setDet(d)} style={{cursor:"pointer",borderBottom:"1px solid "+T.bd}}>
+            <td style={{padding:"10px 14px",fontSize:11,color:T.txM}}>{i+1}</td>
+            <td style={{padding:"10px 14px",fontSize:13,fontWeight:600}}>{d.name}</td>
+            <td style={{padding:"10px 14px",fontSize:11,color:T.bl,fontFamily:"monospace",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.url||"—"}</td>
             <td style={{padding:"10px 14px",fontSize:12,color:T.txS}}>{d.city}</td>
-            <td style={{padding:"10px 14px",fontSize:12}}>{d.type}</td>
-            <td style={{padding:"10px 14px",fontSize:13,fontWeight:700,color:scC(d.score)}}>{d.score}</td>
-            <td style={{padding:"10px 14px",fontSize:13,fontWeight:600,color:scC(d.mobile)}}>{d.mobile}</td>
-            <td style={{padding:"10px 14px"}}>{B(d.seo,seC(d.seo))}</td>
-            <td style={{padding:"10px 14px"}}>{B(d.risk,d.risk==="HIGH"?T.rd:d.risk==="MEDIUM"?T.yw:T.gn)}</td>
-            <td style={{padding:"10px 14px",fontSize:12,fontWeight:700,color:T.acc}}>₹{d.loss}</td>
-            <td style={{padding:"10px 14px",fontSize:12,fontWeight:600,color:d.ls>80?T.acc:T.yw}}>{d.ls}</td>
-            <td style={{padding:"10px 14px"}}>{B(d.stage,SC2[d.stage])}</td>
-            <td style={{padding:"10px 14px",fontSize:12,color:d.views>3?T.gn:d.views>0?T.yw:T.txF}}>{d.views}</td>
-            <td style={{padding:"10px 14px",fontSize:12,color:T.txS}}>{SL[d.stage]}</td>
+            <td style={{padding:"10px 14px"}}>{d.type?B(d.type,T.bl):""}</td>
+            <td style={{padding:"10px 14px",fontSize:14,fontWeight:700,color:scC(d.score)}}>{d.score||"—"}</td>
+            <td style={{padding:"10px 14px",fontSize:11,color:T.txM,fontFamily:"monospace"}}>{d.ph||"—"}</td>
+            <td style={{padding:"10px 14px"}}>{d.src?B(d.src,T.pr):""}</td>
+            <td style={{padding:"10px 14px"}}>{B(SL[d.stage]||d.stage,SC2[d.stage]||T.txM)}</td>
             <td style={{padding:"10px 14px",fontSize:12,color:T.txS}}>{d.owner||"—"}</td>
-            <td style={{padding:"10px 14px"}}>{B(d.src,T.bl)}</td>
-            <td style={{padding:"10px 14px",fontSize:11,color:T.txM,fontFamily:"monospace"}}>{d.ph}</td>
-            <td style={{padding:"10px 14px",fontSize:12,color:T.txS}}>{d.cms}</td>
-            <td style={{padding:"10px 14px",fontSize:12,color:parseFloat(d.lt)>5?T.rd:T.gn,fontWeight:600}}>{d.lt}</td>
-            <td style={{padding:"10px 14px"}}><div style={{width:10,height:10,borderRadius:5,background:d.ssl?T.gn:T.rd}}/></td>
           </tr>
         ))}</tbody>
       </table>
     </div>}
-    {sheetTab==="config"&&<div style={{padding:24}}>
-      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:1}}>
-        {[["google_sheet_id","1abc…xyz"],["sheet_tab_leads","Sheet1"],["drive_folder_html","folder_html_id"],["drive_folder_pdf","folder_pdf_id"],["default_template","premium-v1"],["default_ai_mode","LIGHT"],["rate_limit_rpm","10"],["retry_max","3"],["pdf_service","gotenberg"],["skip_unsafe_sites","true"],["dry_run_mode","false"],["ai_model","claude-sonnet-4-5"],["ai_max_tokens","2000"],["ai_temperature","0.3"],["wa_provider","WA Business API"],["wa_rate_limit","50/hour"],["timezone","Asia/Kolkata"]].map(([k,v],i)=>(
-          <div key={i} style={{display:"contents"}}><div style={{padding:"12px 16px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:12,fontWeight:600,color:T.txS,fontFamily:"monospace"}}>{k}</div><div style={{padding:"12px 16px",border:"1px solid "+T.bd,fontSize:13,color:T.tx}}>{v}</div></div>
-        ))}
-      </div>
+    {/* Dynamic tabs — raw sheet data */}
+    {sheetTab!=="leads"&&<div style={{overflow:"auto",maxHeight:"70vh"}}>
+      {sheetTabLoading&&<div style={{padding:40,textAlign:"center",color:T.acc}}>Loading {sheetTab}...</div>}
+      {!sheetTabLoading&&!sheetTabData[sheetTab]&&<div style={{padding:40,textAlign:"center",color:T.txM}}>Click tab to load data</div>}
+      {sheetTabData[sheetTab]&&<table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr>
+          {sheetTabData[sheetTab].headers.map((h,i)=>(
+            <th key={i} style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:.5,padding:"12px 14px",textAlign:"left",borderBottom:"2px solid "+T.bd,background:dk?T.el:T.ra,whiteSpace:"nowrap",position:"sticky",top:0,zIndex:2,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"}}>{h||"Col "+(i+1)}</th>
+          ))}
+        </tr></thead>
+        <tbody>{sheetTabData[sheetTab].rows.map((row,i)=>(
+          <tr key={i} style={{borderBottom:"1px solid "+T.bd}}>
+            {row.map((cell,j)=>(
+              <td key={j} style={{padding:"10px 14px",fontSize:12,color:T.txS,maxWidth:250,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cell||""}</td>
+            ))}
+          </tr>
+        ))}</tbody>
+      </table>}
     </div>}
-    {sheetTab==="templates"&&<div style={{padding:24}}>
-      <div style={{display:"grid",gridTemplateColumns:"150px 100px 80px 1fr",gap:1}}>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>template_id</div>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>version</div>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>active</div>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>description</div>
-        {tmpls.map(t=>(
-          <div key={t.id} style={{display:"contents"}}><div style={{padding:"10px 14px",border:"1px solid "+T.bd,fontSize:12,fontFamily:"monospace",color:T.bl}}>{t.id}</div><div style={{padding:"10px 14px",border:"1px solid "+T.bd,fontSize:12}}>{t.ver}</div><div style={{padding:"10px 14px",border:"1px solid "+T.bd}}><div style={{width:10,height:10,borderRadius:5,background:t.active?T.gn:T.rd}}/></div><div style={{padding:"10px 14px",border:"1px solid "+T.bd,fontSize:12,color:T.txS}}>{t.desc}</div></div>
-        ))}
-      </div>
-    </div>}
-    {sheetTab==="logs"&&<div style={{padding:24}}>
-      <div style={{display:"grid",gridTemplateColumns:"120px 80px 80px 1fr",gap:1}}>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>timestamp</div>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>level</div>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>source</div>
-        <div style={{padding:"10px 14px",background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:11,fontWeight:600,color:T.txM}}>message</div>
-        {[["2026-03-05 14:38","INFO","worker","Job completed: 5/5 reports generated"],["2026-03-05 14:37","INFO","drive","PDF uploaded: sharmaastro.in"],["2026-03-05 14:36","WARN","ai","Claude timeout — static fallback used"],["2026-03-05 14:35","ERROR","pdf","Gotenberg timeout for mumbaistreeteats.com"],["2026-03-05 14:34","INFO","worker","Batch started: 5 leads, template=premium-v1"],["2026-03-05 11:18","INFO","sheets","Sheet sync complete: 247 leads loaded"],["2026-03-05 09:00","INFO","system","Daily cron started — worker pool initialized"]].map(([ts,lv,src,msg],i)=>(
-          <div key={i} style={{display:"contents"}}><div style={{padding:"10px 14px",border:"1px solid "+T.bd,fontSize:11,fontFamily:"monospace",color:T.txM}}>{ts}</div><div style={{padding:"10px 14px",border:"1px solid "+T.bd}}>{B(lv,lv==="ERROR"?T.rd:lv==="WARN"?T.yw:T.txM)}</div><div style={{padding:"10px 14px",border:"1px solid "+T.bd,fontSize:12,color:T.txS}}>{src}</div><div style={{padding:"10px 14px",border:"1px solid "+T.bd,fontSize:12,color:T.tx}}>{msg}</div></div>
-        ))}
-      </div>
-    </div>}
+  </div>
+  <div style={{fontSize:11,color:T.txF,display:"flex",justifyContent:"space-between"}}>
+    <span>{sheetTab==="leads"?allLeads.length+" leads":sheetTabData[sheetTab]?sheetTabData[sheetTab].rows.length+" rows":"—"} loaded</span>
+    <span>Sheet ID: {SHEET_ID.substring(0,12)}…</span>
   </div>
 </div>}
 
