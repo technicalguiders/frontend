@@ -108,8 +108,8 @@ const SL={audited:"Audited",sent:"Sent",viewed:"Viewed",responded:"Replied",call
 const SC2={audited:"#8b95a5",sent:"#818cf8",viewed:"#fbbf24",responded:"#fb923c",call:"#a78bfa",proposal:"#f472b6",won:"#34d399",lost:"#f87171"};
 const TEAM=[{n:"Rahul",l:4,d:2,rv:"₹55K"},{n:"Priya",l:3,d:1,rv:"₹35K"},{n:"Sahil",l:3,d:5,rv:"₹2.1L"}];
 const CATS=["All","Astrologer","Restaurant","Clinic","Ecommerce","Real Estate","Agency","Education"];
-const CITIES=["Delhi","Mumbai","Bangalore","Hyderabad","Chennai","Pune","Jaipur","Kolkata","Lucknow","Ahmedabad","Chandigarh","Noida","Gurugram","Indore","Bhopal"];
-const STATES=["Andhra Pradesh","Bihar","Delhi","Gujarat","Haryana","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Punjab","Rajasthan","Tamil Nadu","Telangana","Uttar Pradesh","West Bengal"];
+const CITIES=['Agartala','Agra','Ahmedabad','Aizawl','Ajmer','Aligarh','Allahabad','Alwar','Ambala','Amravati','Amritsar','Asansol','Aurangabad','Baddi','Baramulla','Bardhaman','Bareilly','Bathinda','Belgaum','Bengaluru','Berhampur','Bhagalpur','Bharatpur','Bhavnagar','Bhilai','Bhopal','Bhubaneswar','Bikaner','Bilaspur','Bokaro','Chandigarh','Chennai','Coimbatore','Cuttack','Darbhanga','Dehradun','Delhi','Deoghar','Dhanbad','Dharamsala','Dharwad','Dibrugarh','Durg','Durgapur','Erode','Faridabad','Gangtok','Gaya','Ghaziabad','Gulbarga','Guntur','Gurugram','Guwahati','Gwalior','Haridwar','Hazaribagh','Hisar','Howrah','Hubballi','Hubli','Hyderabad','Imphal','Indore','Itanagar','Jabalpur','Jaipur','Jaisalmer','Jalandhar','Jammu','Jamnagar','Jamshedpur','Jodhpur','Jorhat','Kanpur','Kargil','Karimnagar','Karnal','Khammam','Kochi','Kohima','Kolhapur','Kolkata','Korba','Kota','Kozhikode','Kurnool','Leh','Lucknow','Ludhiana','Madurai','Malda','Mangalore','Meerut','Mohali','Moradabad','Mumbai','Muzaffarpur','Mysuru','Nagpur','Nashik','Nellore','New Delhi','Nizamabad','Noida','Panaji','Panipat','Pathankot','Patiala','Patna','Pune','Purnia','Raipur','Rajahmundry','Rajkot','Rajnandgaon','Ramagundam','Ranchi','Rewa','Rishikesh','Rohtak','Roorkee','Rourkela','Rudrapur','Sagar','Salem','Sambalpur','Shimla','Silchar','Siliguri','Solan','Solapur','Sonipat','Srinagar','Surat','Thiruvananthapuram','Thrissur','Tirunelveli','Tirupati','Trichy','Udaipur','Ujjain','Vadodara','Varanasi','Vellore','Vijayawada','Visakhapatnam','Warangal'];
+const STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jammu Kashmir','Jharkhand','Karnataka','Kerala','Ladakh','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal'];
 
 const TMPLS=[
   {id:"premium-v1",name:"Premium Audit",ver:8,pages:8,active:true,used:47,desc:"8-page dark hero with AI analysis",
@@ -126,7 +126,7 @@ const scL=s=>s>=70?"Good":s>=50?"Avg":s>=30?"Poor":"Critical";
 const seC=g=>g==="F"?"#f87171":g==="D"?"#fb923c":g==="C"?"#fbbf24":"#34d399";
 
 export default function App(){
-const[dk,setDk]=useState(true);
+const[dk,setDk]=useState(false);
 const[pg,setPg]=useState("home");
 // Auth
 const[loggedIn,setLoggedIn]=useState(DEMO||!!getToken());
@@ -144,6 +144,7 @@ const[n8nMaps,setN8nMaps]=useState("");
 const[n8nAds,setN8nAds]=useState("");
 const[engineKw,setEngineKw]=useState("");
 const[engineLoc,setEngineLoc]=useState("Delhi");
+const[engineType,setEngineType]=useState("city");
 const[engineQty,setEngineQty]=useState(60);
 const[engineSending,setEngineSending]=useState(false);
 const[adKw,setAdKw]=useState("");
@@ -453,28 +454,28 @@ const EditorM=()=>{if(!editTmpl)return null;
 // ═══ LOGIN SCREEN ═══
 if(!loggedIn){
   return(
-  <div style={{minHeight:"100vh",background:"#060810",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:ff}}>
+  <div style={{minHeight:"100vh",background:"#f4f1ec",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:ff}}>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-  <style>{`*{margin:0;padding:0;box-sizing:border-box}@keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}body{background:#060810}`}</style>
+  <style>{`*{margin:0;padding:0;box-sizing:border-box}@keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}body{background:#f4f1ec}`}</style>
   <div style={{width:"100%",maxWidth:420,padding:40,animation:"rise .6s cubic-bezier(.16,1,.3,1)"}}>
     <div style={{textAlign:"center",marginBottom:40}}>
-      <div style={{width:64,height:64,background:"linear-gradient(135deg,#f59e0b,#f97316)",borderRadius:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",marginBottom:20,boxShadow:"0 8px 40px rgba(245,158,11,.3)"}}>TG</div>
-      <h1 style={{fontSize:28,fontWeight:800,color:"#eef0f6",letterSpacing:-.5}}>Revenue Engine</h1>
-      <p style={{fontSize:14,color:"#4d5470",marginTop:8}}>Sign in to your dashboard</p>
+      <div style={{width:64,height:64,background:"linear-gradient(135deg,#f59e0b,#f97316)",borderRadius:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",marginBottom:20,boxShadow:"0 8px 40px rgba(245,158,11,.15)"}}>TG</div>
+      <h1 style={{fontSize:28,fontWeight:800,color:"#0f172a",letterSpacing:-.5}}>Revenue Engine</h1>
+      <p style={{fontSize:14,color:"#64748b",marginTop:8}}>Sign in to your dashboard</p>
     </div>
-    <div style={{background:"#0c0f18",border:"1px solid rgba(255,255,255,.06)",borderRadius:24,padding:32}}>
+    <div style={{background:"#ffffff",border:"1px solid rgba(0,0,0,.06)",borderRadius:24,padding:32,boxShadow:"0 4px 32px rgba(0,0,0,.04)"}}>
       <div style={{marginBottom:18}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#8891a5",marginBottom:8}}>Email</div>
-        <input value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder="sahil@technicalguider.com" style={{width:"100%",padding:"14px 18px",fontSize:14,background:"#12161f",border:"1.5px solid rgba(255,255,255,.06)",borderRadius:14,color:"#eef0f6",outline:"none",fontFamily:ff}}/>
+        <div style={{fontSize:13,fontWeight:600,color:"#64748b",marginBottom:8}}>Email</div>
+        <input value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder="sahil@technicalguider.com" style={{width:"100%",padding:"14px 18px",fontSize:14,background:"#f8fafc",border:"1.5px solid rgba(0,0,0,.08)",borderRadius:14,color:"#0f172a",outline:"none",fontFamily:ff}}/>
       </div>
       <div style={{marginBottom:24}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#8891a5",marginBottom:8}}>Password</div>
-        <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"14px 18px",fontSize:14,background:"#12161f",border:"1.5px solid rgba(255,255,255,.06)",borderRadius:14,color:"#eef0f6",outline:"none",fontFamily:ff}} onKeyDown={e=>{if(e.key==="Enter"){if(DEMO){setLoggedIn(true)}else{apiCall("/auth/login",{method:"POST",body:{email:loginEmail,password:loginPass}}).then(r=>{if(r?.token){setTokenLS(r.token);setLoggedIn(true)}else setLoginPass("")})}}}}/>
+        <div style={{fontSize:13,fontWeight:600,color:"#64748b",marginBottom:8}}>Password</div>
+        <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"14px 18px",fontSize:14,background:"#f8fafc",border:"1.5px solid rgba(0,0,0,.08)",borderRadius:14,color:"#0f172a",outline:"none",fontFamily:ff}} onKeyDown={e=>{if(e.key==="Enter"){if(DEMO){setLoggedIn(true)}else{apiCall("/auth/login",{method:"POST",body:{email:loginEmail,password:loginPass}}).then(r=>{if(r?.token){setTokenLS(r.token);setLoggedIn(true)}else setLoginPass("")})}}}}/>
       </div>
-      <button onClick={async()=>{if(DEMO){setLoggedIn(true);return}const r=await apiCall("/auth/login",{method:"POST",body:{email:loginEmail,password:loginPass}});if(r?.token){setTokenLS(r.token);setLoggedIn(true)}else setLoginPass("")}} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#f59e0b,#f97316)",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:ff,boxShadow:"0 6px 28px rgba(245,158,11,.3)"}}>
+      <button onClick={async()=>{if(DEMO){setLoggedIn(true);return}const r=await apiCall("/auth/login",{method:"POST",body:{email:loginEmail,password:loginPass}});if(r?.token){setTokenLS(r.token);setLoggedIn(true)}else setLoginPass("")}} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#f59e0b,#f97316)",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:ff,boxShadow:"0 6px 28px rgba(245,158,11,.2)"}}>
         {DEMO?"Enter Demo Mode":"Sign In"}
       </button>
-      {DEMO&&<p style={{textAlign:"center",fontSize:12,color:"#4d5470",marginTop:16}}>Demo mode — no backend required</p>}
+      {DEMO&&<p style={{textAlign:"center",fontSize:12,color:"#94a3b8",marginTop:16}}>Demo mode — no backend required</p>}
     </div>
   </div></div>);
 }
@@ -1352,7 +1353,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
 
 {/* ═══ OTHER PAGES ═══ */}
 {["campaigns","tracking","revenue","team","sequences","engine","automations","adintel","notepad","settings"].includes(pg)&&<div style={{display:"flex",flexDirection:"column",gap:24}}>
-  <h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,textTransform:"capitalize"}}>{pg==="engine"?"Lead Engine":pg==="adintel"?"Ad Intelligence":pg==="automations"?"Automation Hub":pg}</h1>
+  {pg!=="engine"&&pg!=="adintel"&&<h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,textTransform:"capitalize"}}>{pg==="automations"?"Automation Hub":pg}</h1>}
 
   {pg==="tracking"&&<>
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
@@ -1848,50 +1849,100 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   </div>}
 
   {pg==="engine"&&<div style={{display:"flex",flexDirection:"column",gap:20}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div><h1 style={{fontSize:26,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Lead Engine</h1><p style={{fontSize:13,color:T.txM}}>Google Maps lead scraper → n8n automation</p></div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        {n8nMaps?<span style={{padding:"6px 14px",borderRadius:8,background:T.gn+"0A",border:"1px solid "+T.gn+"18",fontSize:11,fontWeight:600,color:T.gn}}>● n8n Connected</span>:<span style={{padding:"6px 14px",borderRadius:8,background:T.rd+"0A",border:"1px solid "+T.rd+"18",fontSize:11,fontWeight:600,color:T.rd}}>⚠ Set webhook in Settings</span>}
+    {/* Hero Header */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+      <div>
+        <div style={{fontSize:11,fontWeight:700,color:T.acc,textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>— Google Maps Lead Engine —</div>
+        <h1 style={{fontSize:30,fontWeight:800,letterSpacing:-1,lineHeight:1.2,marginBottom:6}}>Hunt Leads<br/>Across <span style={{color:T.acc}}>All India</span></h1>
+        <p style={{fontSize:13,color:T.txM,maxWidth:400,lineHeight:1.6}}>Select any city or entire state — our grid engine covers every corner and delivers enriched leads with phone & website to your Google Sheet.</p>
       </div>
+      {n8nMaps?<span style={{padding:"8px 18px",borderRadius:10,background:T.gn+"0A",border:"1px solid "+T.gn+"18",fontSize:12,fontWeight:600,color:T.gn,display:"flex",alignItems:"center",gap:6}}><div style={{width:7,height:7,borderRadius:4,background:T.gn}}/>n8n Connected</span>:<span style={{padding:"8px 18px",borderRadius:10,background:T.yw+"0A",border:"1px solid "+T.yw+"18",fontSize:12,fontWeight:600,color:T.yw}}>⚠ Set webhook in Settings</span>}
     </div>
-    {/* Form */}
-    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-        <div style={{fontSize:15,fontWeight:700,marginBottom:20}}>New Request</div>
-        <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Keyword</div><input value={engineKw} onChange={e=>setEngineKw(e.target.value)} placeholder="e.g. interior designer, hospital, gym" style={IS}/></div>
-        <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Location</div><select value={engineLoc} onChange={e=>setEngineLoc(e.target.value)} style={IS}>{CITIES.map(c=><option key={c}>{c}</option>)}</select></div>
-        <div style={{marginBottom:20}}><div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:6}}>Quantity</div><input type="number" value={engineQty} onChange={e=>setEngineQty(e.target.value)} style={{...IS,width:120}}/></div>
-        <button disabled={!engineKw||!n8nMaps||engineSending} onClick={async()=>{
+
+    {/* Stats from Sheet */}
+    <div style={{display:"flex",gap:2,background:T.sf,border:"1px solid "+T.bd,borderRadius:16,overflow:"hidden"}}>
+      {[{l:"REQUESTS",v:sheetTabData["Form Request"]?sheetTabData["Form Request"].rows.length:"—"},{l:"COMPLETED",v:sheetTabData["Form Request"]?sheetTabData["Form Request"].rows.filter(r=>(r[7]||"").toUpperCase()==="DONE").length:"—"},{l:"MODE",v:"⚡",sub:"Auto"}].map((s,i)=>(
+        <div key={i} style={{flex:1,textAlign:"center",padding:"18px 12px",borderRight:i<2?"1px solid "+T.bd:"none"}}>
+          <div style={{fontSize:26,fontWeight:800,color:i===2?T.acc:T.tx}}>{s.v}</div>
+          <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginTop:4}}>{s.l}</div>
+        </div>
+      ))}
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:18}}>
+      {/* Request Form */}
+      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:28,boxShadow:T.sh}}>
+        <div style={{fontSize:11,fontWeight:700,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:20}}>New Request</div>
+        
+        {/* City / State Toggle */}
+        <div style={{display:"flex",background:dk?T.el:T.ra,borderRadius:14,padding:4,gap:4,marginBottom:22,border:"1px solid "+T.bd}}>
+          {[["city","🏙 City"],["state","🗺 State"]].map(([v,l])=>(
+            <button key={v} onClick={()=>{setEngineType(v);setEngineLoc(v==="city"?"Delhi":"Delhi")}} style={{flex:1,padding:"12px",borderRadius:10,border:engineType===v?"2px solid "+T.acc:"2px solid transparent",fontSize:13,fontWeight:700,fontFamily:ff,cursor:"pointer",background:engineType===v?T.sf:"transparent",color:engineType===v?T.tx:T.txM,boxShadow:engineType===v?T.sh:"none",transition:"all .2s"}}>{l}</button>
+          ))}
+        </div>
+
+        {/* Location */}
+        <div style={{marginBottom:18}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.txM,textTransform:"uppercase",letterSpacing:1,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:6,height:6,borderRadius:3,background:T.acc}}/>{engineType==="city"?"City":"State"}
+          </div>
+          <select value={engineLoc} onChange={e=>setEngineLoc(e.target.value)} style={{...IS,fontSize:14}}>
+            <option value="">Select {engineType}…</option>
+            {(engineType==="city"?CITIES:STATES).map(c=><option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {/* Keyword */}
+        <div style={{marginBottom:18}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.txM,textTransform:"uppercase",letterSpacing:1,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:6,height:6,borderRadius:3,background:T.acc}}/>Keyword
+          </div>
+          <input value={engineKw} onChange={e=>setEngineKw(e.target.value)} placeholder="e.g. interior designer, hospital, gym" style={{...IS,fontSize:14}}/>
+        </div>
+
+        {/* Quantity */}
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.txM,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Quantity (approx leads)</div>
+          <input type="number" value={engineQty} onChange={e=>setEngineQty(e.target.value)} style={{...IS,width:140,fontSize:14}}/>
+        </div>
+
+        {/* Submit */}
+        <button disabled={!engineKw||!engineLoc||!n8nMaps||engineSending} onClick={async()=>{
           if(!n8nMaps){showT("⚠ Set n8n Maps webhook URL in Settings first");return}
           setEngineSending(true);
           try{
             const r=await fetch(n8nMaps,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({keyword:engineKw,location:engineLoc,quantity:parseInt(engineQty)||60})});
-            if(r.ok){showT("🚀 Lead hunt started! "+engineKw+" in "+engineLoc);setEngineKw("")}
+            if(r.ok){showT("🚀 Lead hunt started! "+engineKw+" in "+engineLoc);setEngineKw("");fetchSheetTab("Form Request")}
             else showT("❌ Failed — check n8n webhook")
-          }catch(e){showT("❌ Error: "+e.message)}
+          }catch(e){showT("❌ "+e.message)}
           setEngineSending(false);
-        }} style={{width:"100%",padding:16,borderRadius:14,border:"none",background:(!engineKw||!n8nMaps)?"#555":accG,color:"#fff",fontSize:15,fontWeight:700,cursor:(!engineKw||!n8nMaps)?"not-allowed":"pointer",fontFamily:ff,opacity:engineSending?.6:1}}>
-          {engineSending?"⏳ Sending...":"🚀 Start Lead Hunt"}
+        }} style={{width:"100%",padding:18,borderRadius:14,border:"none",background:(!engineKw||!engineLoc||!n8nMaps)?dk?"#333":"#ccc":accG,color:"#fff",fontSize:16,fontWeight:700,cursor:(!engineKw||!engineLoc||!n8nMaps)?"not-allowed":"pointer",fontFamily:ff,opacity:engineSending?.6:1,transition:"all .2s",boxShadow:engineKw&&n8nMaps?`0 6px 24px ${T.acc}33`:"none"}}>
+          {engineSending?"⏳ Sending to n8n...":"🚀 Start Lead Hunt"}
         </button>
-        {!n8nMaps&&<div style={{marginTop:12,padding:12,borderRadius:10,background:T.yw+"0A",border:"1px solid "+T.yw+"18",fontSize:12,color:T.yw}}>⚠ Go to Settings → set "n8n Maps Webhook URL" to connect</div>}
       </div>
-      {/* Live Request History from Sheet */}
-      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div style={{fontSize:15,fontWeight:700}}>Request History</div>
-          <button onClick={async()=>{showT("🔄 Loading...");await fetchSheetTab("Form Request");setFormRequests(true)}} style={{padding:"6px 14px",borderRadius:8,border:"1px solid "+T.bd,background:T.sf,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Refresh</button>
+
+      {/* Live Request History */}
+      <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:28,boxShadow:T.sh,display:"flex",flexDirection:"column"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Request History</div>
+          <button onClick={async()=>{showT("🔄 Loading...");await fetchSheetTab("Form Request")}} style={{padding:"6px 14px",borderRadius:8,border:"1px solid "+T.bd,background:"transparent",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Refresh</button>
         </div>
-        {!sheetTabData["Form Request"]&&<div style={{padding:30,textAlign:"center",color:T.txM,fontSize:13}}>Click Refresh to load from Google Sheet</div>}
-        {sheetTabData["Form Request"]&&<div style={{maxHeight:400,overflow:"auto"}}>
-          {sheetTabData["Form Request"].rows.slice(-15).reverse().map((row,i)=>{
+        <div style={{flex:1,overflow:"auto",maxHeight:420}}>
+          {!sheetTabData["Form Request"]&&<div style={{padding:40,textAlign:"center",color:T.txM,fontSize:13}}>Click Refresh to load requests from Sheet</div>}
+          {sheetTabData["Form Request"]&&sheetTabData["Form Request"].rows.slice(-20).reverse().map((row,i)=>{
             const kw=row[0]||"";const loc=row[1]||"";const status=(row[7]||"").toUpperCase();const done=row[8]||"0";
-            return(<div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+T.bd}}>
-              <div style={{width:36,height:36,borderRadius:10,background:status==="DONE"?T.gn+"0A":status==="PENDING"?T.acc+"0A":T.txF+"0A",border:"1px solid "+(status==="DONE"?T.gn:status==="PENDING"?T.acc:T.txF)+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{status==="DONE"?"✅":status==="PENDING"?"⏳":"📋"}</div>
-              <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{kw}</div><div style={{fontSize:11,color:T.txM,marginTop:2}}>{loc} · {status||"—"}</div></div>
-              <div style={{textAlign:"right",flexShrink:0}}>{status==="DONE"&&<div style={{fontSize:16,fontWeight:800,color:T.gn}}>{done}</div>}{status==="PENDING"&&<div style={{fontSize:11,color:T.acc,fontWeight:600}}>Processing</div>}<div style={{fontSize:10,color:T.txM}}>{status==="DONE"?"leads":""}</div></div>
+            return(<div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 0",borderBottom:"1px solid "+T.bd,transition:"background .15s"}} onMouseEnter={e=>e.currentTarget.style.background=T.acc+"04"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{width:34,height:34,borderRadius:10,background:status==="DONE"?T.gn+"0A":status==="PENDING"?T.acc+"0A":T.txF+"08",border:"1px solid "+(status==="DONE"?T.gn:status==="PENDING"?T.acc:T.txF)+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{status==="DONE"?"✅":status==="PENDING"?"⏳":"📋"}</div>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{kw}</div><div style={{fontSize:11,color:T.txM,marginTop:2}}>{loc}</div></div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                {status==="DONE"&&<div style={{fontSize:18,fontWeight:800,color:T.gn}}>{done}</div>}
+                {status==="PENDING"&&<div style={{fontSize:11,color:T.acc,fontWeight:600}}>Processing…</div>}
+                {status!==""&&status!=="DONE"&&status!=="PENDING"&&<div style={{fontSize:11,color:T.txM}}>{status}</div>}
+                <div style={{fontSize:10,color:T.txM}}>{status==="DONE"?"leads":""}</div>
+              </div>
             </div>)
           })}
-        </div>}
+        </div>
       </div>
     </div>
   </div>}
