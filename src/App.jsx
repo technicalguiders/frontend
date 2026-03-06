@@ -221,6 +221,22 @@ const[sheetTab,setSheetTab]=useState("leads");
 const SHEET_TABS=["Form Request","Google Ads Form Request","Ads Data","No Website","Website No Phone","Leads Website","Website Not Working","Audit Website","Credentials","Personal"];
 const[sheetTabData,setSheetTabData]=useState({});
 const[sheetTabLoading,setSheetTabLoading]=useState(false);
+const[syncInterval,setSyncInterval]=useState("manual");
+const[syncTimer,setSyncTimer]=useState(null);
+const[lastSynced,setLastSynced]=useState(null);
+
+// Auto-sync timer
+useEffect(()=>{
+  if(syncTimer)clearInterval(syncTimer);
+  if(syncInterval==="manual"||!SHEET_LIVE)return;
+  const ms=parseInt(syncInterval)*60*1000;
+  const id=setInterval(async()=>{
+    const d=await fetchGoogleSheet();
+    if(d&&d.length>0){setAllLeads(d);setLastSynced(new Date())}
+  },ms);
+  setSyncTimer(id);
+  return()=>clearInterval(id);
+},[syncInterval]);
 
 async function fetchSheetTab(tabName){
   try{
@@ -1231,19 +1247,30 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       <div><h1 style={{fontSize:26,fontWeight:800,letterSpacing:-.8,marginBottom:2}}>Sheet Data</h1><p style={{fontSize:13,color:T.txM}}>Live connected — {SHEET_TABS.length+1} tabs</p></div>
     </div>
     <div style={{display:"flex",gap:8}}>
-      <button onClick={async()=>{showT("🔄 Syncing...");const d=await fetchGoogleSheet();if(d&&d.length>0){setAllLeads(d);showT("✅ "+d.length+" leads synced!")}}} className="hov" style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS,display:"flex",alignItems:"center",gap:6}}>↻ Sync</button>
+      <button onClick={async()=>{showT("🔄 Syncing...");const d=await fetchGoogleSheet();if(d&&d.length>0){setAllLeads(d);setLastSynced(new Date());showT("✅ "+d.length+" leads synced!")}}} className="hov" style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS,display:"flex",alignItems:"center",gap:6}}>↻ Sync</button>
       {sheetUrl&&<a href={sheetUrl} target="_blank" rel="noreferrer" className="hov" style={{padding:"10px 20px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#34A853,#0F9D58)",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,textDecoration:"none",display:"flex",alignItems:"center",gap:6,boxShadow:"0 4px 16px rgba(52,168,83,.2)"}}>↗ Open in Sheets</a>}
     </div>
   </div>
-  {/* Status */}
-  <div style={{display:"flex",gap:14,alignItems:"center",padding:"12px 20px",background:T.gn+"08",border:"1px solid "+T.gn+"18",borderRadius:14}}>
+  {/* Status + Sync Controls */}
+  <div style={{display:"flex",gap:14,alignItems:"center",padding:"12px 20px",background:T.gn+"08",border:"1px solid "+T.gn+"18",borderRadius:14,flexWrap:"wrap"}}>
     <div style={{position:"relative"}}><div style={{width:10,height:10,borderRadius:5,background:T.gn}}/><div style={{position:"absolute",inset:-3,borderRadius:8,border:"2px solid "+T.gn,animation:"subtlePing 2s infinite"}}/></div>
     <span style={{fontSize:13,color:T.gn,fontWeight:700}}>Live Connected</span>
     <div style={{width:1,height:16,background:T.gn+"22"}}/>
     <span style={{fontSize:12,color:T.txM}}>{allLeads.length} leads</span>
     <div style={{width:1,height:16,background:T.gn+"22"}}/>
-    <span style={{fontSize:12,color:T.txM}}>{SHEET_TABS.length+1} tabs</span>
-    <span style={{marginLeft:"auto",fontSize:11,color:T.txF}}>Auto-syncs every 15 min</span>
+    <span style={{fontSize:12,color:T.txM}}>{lastSynced?"Last synced: "+lastSynced.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"Not synced yet"}</span>
+    <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+      <span style={{fontSize:11,color:T.txF}}>Auto-sync:</span>
+      <select value={syncInterval} onChange={e=>{setSyncInterval(e.target.value);if(e.target.value!=="manual")showT("⏰ Auto-sync set to "+e.target.value+" min")}} style={{padding:"6px 12px",borderRadius:8,border:"1px solid "+T.bd,background:dk?T.el:T.ra,color:T.tx,fontSize:12,fontWeight:600,fontFamily:ff,cursor:"pointer",outline:"none"}}>
+        <option value="manual">Manual</option>
+        <option value="1">Every 1 min</option>
+        <option value="5">Every 5 min</option>
+        <option value="10">Every 10 min</option>
+        <option value="15">Every 15 min</option>
+        <option value="30">Every 30 min</option>
+      </select>
+      {syncInterval!=="manual"&&<div style={{width:6,height:6,borderRadius:3,background:T.gn,animation:"pulse 2s infinite"}}/>}
+    </div>
   </div>
   {/* Tabs */}
   <div style={{display:"flex",gap:4,padding:5,background:dk?T.el:T.ra,borderRadius:16,border:"1px solid "+T.bd,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
@@ -1264,7 +1291,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
           <tr key={i} onClick={()=>setDet(d)} style={{cursor:"pointer",borderBottom:"1px solid "+T.bd,transition:"background .15s"}} onMouseEnter={e=>e.currentTarget.style.background=dk?"rgba(245,158,11,.02)":"rgba(245,158,11,.015)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
             <td style={{padding:"12px 16px",fontSize:11,color:T.txF,fontFamily:"monospace"}}>{i+1}</td>
             <td style={{padding:"12px 16px",fontSize:13,fontWeight:600}}>{d.name}</td>
-            <td style={{padding:"12px 16px",fontSize:11.5,color:T.bl,fontFamily:"monospace",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.url||"—"}</td>
+            <td style={{padding:"12px 16px",fontSize:11.5,maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.url?<a href={d.url.startsWith("http")?d.url:"https://"+d.url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{color:T.bl,textDecoration:"none",fontFamily:"monospace"}}>{d.url}</a>:<span style={{color:T.txF}}>—</span>}</td>
             <td style={{padding:"12px 16px",fontSize:12,color:T.txS}}>{d.city||"—"}</td>
             <td style={{padding:"12px 16px"}}>{d.type?<span style={{padding:"3px 10px",borderRadius:6,background:T.bl+"12",color:T.bl,fontSize:11,fontWeight:600}}>{d.type}</span>:""}</td>
             <td style={{padding:"12px 16px"}}>{d.score?<span style={{fontSize:15,fontWeight:800,color:scC(d.score)}}>{d.score}</span>:<span style={{color:T.txF}}>—</span>}</td>
@@ -1286,7 +1313,14 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         <tbody>{sheetTabData[sheetTab].rows.map((row,i)=>(
           <tr key={i} style={{borderBottom:"1px solid "+T.bd,transition:"background .15s"}} onMouseEnter={e=>e.currentTarget.style.background=dk?"rgba(255,255,255,.015)":"rgba(0,0,0,.01)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
             <td style={{padding:"11px 16px",fontSize:10,color:T.txF,fontFamily:"monospace"}}>{i+1}</td>
-            {row.map((cell,j)=>(<td key={j} style={{padding:"11px 16px",fontSize:12,color:j===0?T.tx:T.txS,fontWeight:j===0?600:400,maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cell||"—"}</td>))}
+            {row.map((cell,j)=>{const isUrl=cell&&(cell.startsWith("http")||cell.startsWith("www.")||cell.includes(".com")||cell.includes(".in")||cell.includes(".org")||cell.includes("maps.google"));const isPhone=cell&&/^\+?\d[\d\s\-]{8,}$/.test(cell.trim());const isEmail=cell&&cell.includes("@")&&cell.includes(".");return(
+              <td key={j} style={{padding:"11px 16px",fontSize:12,color:j===0?T.tx:T.txS,fontWeight:j===0?600:400,maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {isUrl?<a href={cell.startsWith("http")?cell:"https://"+cell} target="_blank" rel="noreferrer" style={{color:T.bl,textDecoration:"none"}} title={cell}>{cell.length>40?cell.substring(0,40)+"…":cell}</a>
+                :isPhone?<a href={"tel:"+cell.replace(/\s/g,"")} style={{color:T.acc,textDecoration:"none",fontFamily:"monospace"}}>{cell}</a>
+                :isEmail?<a href={"mailto:"+cell} style={{color:T.pr,textDecoration:"none"}}>{cell}</a>
+                :cell||"—"}
+              </td>
+            )})}
           </tr>
         ))}</tbody>
       </table>}
