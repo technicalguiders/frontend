@@ -328,19 +328,57 @@ const filtered=allLeads.filter(x=>{
   return x.name.toLowerCase().includes(q)||x.url.toLowerCase().includes(q)||x.city.toLowerCase().includes(q)||(x.ph||"").includes(q)||(x.owner||"").toLowerCase().includes(q)||x.type.toLowerCase().includes(q)||x.src.toLowerCase().includes(q);
 });
 
+// Report generation via backend API (works in DEMO mode too - calls localhost:3001)
+const REPORT_API="http://localhost:3001/api/reports";
+const[genResults,setGenResults]=useState([]);
+
+const generateReport=async(lead)=>{
+  try{
+    const r=await fetch(REPORT_API+"/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(lead)});
+    const data=await r.json();
+    return data;
+  }catch(e){return{success:false,error:e.message}}
+};
+
+const downloadReportPDF=async(lead)=>{
+  try{
+    showT("📊 Generating report for "+lead.name+"...");
+    const r=await fetch(REPORT_API+"/generate/pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(lead)});
+    if(!r.ok){showT("❌ Failed: "+(await r.json()).error);return}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=(lead.name||"report").replace(/[^a-zA-Z0-9]/g,"_")+"_audit.pdf";
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+    showT("✅ PDF downloaded: "+lead.name);
+  }catch(e){showT("❌ Error: "+e.message)}
+};
+
+const previewReportHTML=async(lead)=>{
+  try{
+    showT("🤖 Generating AI report preview...");
+    const r=await fetch(REPORT_API+"/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(lead)});
+    if(!r.ok){showT("❌ Failed");return}
+    const html=await r.text();
+    const w=window.open("","_blank");w.document.write(html);w.document.close();
+    showT("✅ Report preview opened!");
+  }catch(e){showT("❌ Error: "+e.message)}
+};
+
 const runGen=async()=>{
-  setIsGen(true);setGenP(0);
-  if(!DEMO){
-    const result=await apiCall("/reports/generate/batch",{method:"POST",body:{leadIds:queue.map(q=>q.id),autoSend:autoWA,autoEmail,autoDrip:autoSeq}});
-    if(result?.queued){
-      for(let i=0;i<queue.length;i++){await new Promise(r=>setTimeout(r,1200));setGenP(((i+1)/queue.length)*100)}
-      showT("✅ "+result.queued+" reports queued for generation"+(autoWA?" + WhatsApp":"")+(autoEmail?" + Email":""));
-      await reloadLeads();
-    }else showT("❌ Generation failed — check settings");
-  }else{
-    for(let i=0;i<queue.length;i++){await new Promise(r=>setTimeout(r,600));setGenP(((i+1)/queue.length)*100)}
-    showT("✅ "+queue.length+" reports generated"+(autoWA?" + WhatsApp sent":"")+(autoEmail?" + Email sent":""));
+  setIsGen(true);setGenP(0);setGenResults([]);
+  const results=[];
+  for(let i=0;i<queue.length;i++){
+    setGenP(((i)/queue.length)*100);
+    showT(`📊 ${i+1}/${queue.length}: ${queue[i].name}...`);
+    const result=await generateReport(queue[i]);
+    results.push({name:queue[i].name,...result});
+    setGenP(((i+1)/queue.length)*100);
   }
+  setGenResults(results);
+  const ok=results.filter(r=>r.success).length;
+  const fail=results.filter(r=>!r.success).length;
+  showT(`✅ ${ok} reports generated`+(fail>0?`, ❌ ${fail} failed`:""));
   setIsGen(false);
 };
 
@@ -508,18 +546,14 @@ return(
   </div>
   {/* Actions + Quick Actions Dropdown */}
   <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-    {["📤 Send Report","💬 WhatsApp","📧 Email","📞 Book Call","📝 Proposal","✅ Won","❌ Lost","🔄 Regen"].map((a,i)=>(
+    {[["📄 Generate PDF","gen"],["👁 Preview Report","preview"],["💬 WhatsApp","wa"],["📧 Email","email"],["📞 Book Call","call"],["✅ Won","won"],["❌ Lost","lost"]].map(([a,act],i)=>(
       <button key={i} onClick={async()=>{
-        showT(a+" → sending...");
-        if(!DEMO){
-          if(i===0||i===1)await apiCall(`/whatsapp/send/${d.id}`,{method:"POST",body:{}});
-          if(i===5)await apiCall(`/leads/${d.id}`,{method:"PATCH",body:{stage:"won"}});
-          if(i===6)await apiCall(`/leads/${d.id}`,{method:"PATCH",body:{stage:"lost"}});
-          if(i===7)await apiCall(`/reports/generate/${d.id}`,{method:"POST"});
-          await reloadLeads();
-        }
-        showT("✅ "+a+" → "+d.name);
-      }} style={{padding:"9px 16px",borderRadius:12,border:"1px solid "+T.bd,background:i===0?accG:T.sf,color:i===0?"#fff":T.txS,fontSize:11.5,fontWeight:600,cursor:"pointer",fontFamily:ff}}>{a}</button>
+        if(act==="gen"){await downloadReportPDF(d)}
+        else if(act==="preview"){await previewReportHTML(d)}
+        else if(act==="won"){if(!DEMO)await apiCall(`/leads/${d.id}`,{method:"PATCH",body:{stage:"won"}});showT("✅ Marked Won: "+d.name)}
+        else if(act==="lost"){if(!DEMO)await apiCall(`/leads/${d.id}`,{method:"PATCH",body:{stage:"lost"}});showT("❌ Marked Lost: "+d.name)}
+        else showT("✅ "+a+" → "+d.name);
+      }} style={{padding:"9px 16px",borderRadius:12,border:"1px solid "+T.bd,background:(act==="gen")?accG:(act==="preview")?"linear-gradient(135deg,#6366f1,#8b5cf6)":T.sf,color:(act==="gen"||act==="preview")?"#fff":T.txS,fontSize:11.5,fontWeight:600,cursor:"pointer",fontFamily:ff}}>{a}</button>
     ))}
     {/* Quick Actions Dropdown */}
     <div style={{position:"relative"}}>
@@ -1050,11 +1084,24 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
           <Check label="↻ Sequence" checked={autoSeq} onChange={()=>setAutoSeq(!autoSeq)}/>
         </div>
       </div>
-      <button onClick={runGen} disabled={isGen||!queue.length} style={{padding:"18px 36px",borderRadius:16,border:"none",background:(isGen||!queue.length)?T.bd:accG,color:(isGen||!queue.length)?T.txM:"#fff",fontSize:16,fontWeight:700,cursor:(isGen||!queue.length)?"not-allowed":"pointer",fontFamily:ff,boxShadow:(isGen||!queue.length)?"none":`0 6px 28px ${T.acc}33`,textAlign:"center",animation:(!isGen&&queue.length)?"glow 2s infinite":"none"}}>{isGen?`${Math.round(genP)}%`:`🚀 Generate + Send ${queue.length} Reports`}</button>
+      <button onClick={runGen} disabled={isGen||!queue.length} style={{padding:"18px 36px",borderRadius:16,border:"none",background:(isGen||!queue.length)?T.bd:accG,color:(isGen||!queue.length)?T.txM:"#fff",fontSize:16,fontWeight:700,cursor:(isGen||!queue.length)?"not-allowed":"pointer",fontFamily:ff,boxShadow:(isGen||!queue.length)?"none":`0 6px 28px ${T.acc}33`,textAlign:"center",animation:(!isGen&&queue.length)?"glow 2s infinite":"none"}}>{isGen?`🤖 Generating... ${Math.round(genP)}%`:`🚀 Generate ${queue.length} Reports (AI + PDF)`}</button>
+      {isGen&&<div style={{marginTop:12,height:6,background:T.el,borderRadius:3,overflow:"hidden"}}><div style={{width:genP+"%",height:"100%",background:`linear-gradient(90deg,${T.acc},#f59e0b)`,borderRadius:3,transition:"width .3s"}}/></div>}
+      {/* Results */}
+      {genResults.length>0&&<div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+        <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:16}}>Generated Reports ({genResults.filter(r=>r.success).length}/{genResults.length})</div>
+        {genResults.map((r,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+T.bd}}>
+            <div style={{width:28,height:28,borderRadius:8,background:r.success?T.gn+"12":T.rd+"12",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>{r.success?"✅":"❌"}</div>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{r.name||r.lead}</div>{r.success&&<div style={{fontSize:11,color:T.txM,marginTop:2}}>{r.pdfSize} · AI generated</div>}{!r.success&&<div style={{fontSize:11,color:T.rd}}>{r.error}</div>}</div>
+            {r.success&&<button onClick={()=>{const lead=queue.find(q=>q.name===r.name)||allLeads.find(l=>l.name===r.name);if(lead)downloadReportPDF(lead)}} style={{padding:"6px 14px",borderRadius:8,border:"none",background:T.acc+"12",color:T.acc,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff}}>📥 Download PDF</button>}
+            {r.success&&<button onClick={()=>{const lead=queue.find(q=>q.name===r.name)||allLeads.find(l=>l.name===r.name);if(lead)previewReportHTML(lead)}} style={{padding:"6px 14px",borderRadius:8,border:"none",background:T.pr+"12",color:T.pr,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:ff}}>👁 Preview</button>}
+          </div>
+        ))}
+      </div>}
     </div>
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
       <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:20}}>Queue · {queue.length} leads</div>
-      <div style={{maxHeight:500,overflow:"auto"}}>{queue.map((d,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0",borderBottom:"1px solid "+T.bd}}><span style={{fontSize:20,fontWeight:800,color:scC(d.score),width:34,textAlign:"center"}}>{d.score}</span><div style={{flex:1}}><div style={{fontSize:13.5,fontWeight:600}}>{d.name}</div><div style={{fontSize:11,color:T.txM,marginTop:3}}>{d.url} · {d.city}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:700,color:T.acc}}>₹{d.loss}</div><div style={{fontSize:10,color:T.pr,marginTop:2}}>LS:{d.ls}</div></div></div>)}</div>
+      <div style={{maxHeight:500,overflow:"auto"}}>{queue.map((d,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0",borderBottom:"1px solid "+T.bd}}><span style={{fontSize:20,fontWeight:800,color:scC(d.score),width:34,textAlign:"center"}}>{d.score}</span><div style={{flex:1}}><div style={{fontSize:13.5,fontWeight:600}}>{d.name}</div><div style={{fontSize:11,color:T.txM,marginTop:3}}>{d.url} · {d.city}</div></div><button onClick={()=>previewReportHTML(d)} style={{padding:"5px 10px",borderRadius:6,border:"1px solid "+T.pr+"33",background:T.pr+"08",color:T.pr,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:ff}}>👁</button><button onClick={()=>downloadReportPDF(d)} style={{padding:"5px 10px",borderRadius:6,border:"1px solid "+T.acc+"33",background:T.acc+"08",color:T.acc,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:ff}}>📄 PDF</button></div>)}</div>
     </div>
   </div>
 </div>}
