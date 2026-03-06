@@ -189,13 +189,9 @@ const[toast,setToast]=useState(null);
 // Notifications
 const[notifOpen,setNotifOpen]=useState(false);
 const[notifs,setNotifs]=useState([
-  {id:1,type:"hot",msg:"🔥 Sharma Astrology viewed report 5× in last hour",time:"2m ago",read:false},
-  {id:2,type:"reply",msg:"💬 Delhi Dental replied on WhatsApp",time:"8m ago",read:false},
-  {id:3,type:"payment",msg:"💰 ₹35,000 payment received — GreenLeaf",time:"1h ago",read:false},
-  {id:4,type:"system",msg:"✅ Batch #47 completed: 5/5 reports generated",time:"2h ago",read:true},
-  {id:5,type:"alert",msg:"⚠️ WhatsApp rate limit 80% reached",time:"3h ago",read:true},
-  {id:6,type:"lead",msg:"📱 New lead from Meta Ads: Ravi Mehta, Delhi",time:"3h ago",read:true},
-  {id:7,type:"drip",msg:"↻ Drip stopped: Karan Singh replied",time:"4h ago",read:true},
+  {id:1,type:"system",msg:"📊 Dashboard loaded — "+LD.length+" demo leads",time:"Just now",read:false},
+  {id:2,type:"info",msg:"⚙ Set n8n webhook URLs in Settings to connect automations",time:"Setup",read:false},
+  {id:3,type:"info",msg:"📋 Google Sheet connected — live data syncing",time:"Setup",read:true},
 ]);
 // CSV Import
 const[csvModal,setCsvModal]=useState(false);
@@ -844,16 +840,15 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
 {/* ═══ HOME ═══ */}
 {pg==="home"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
   {loading&&<div style={{textAlign:"center",padding:40,color:T.acc,fontSize:16,fontWeight:600}}>📊 Loading data from Google Sheet...</div>}
-  {/* AI Briefing */}
-  <div className="glow-accent" style={{background:`linear-gradient(135deg,${T.acc}0C,${dk?"rgba(99,102,241,.04)":"rgba(99,102,241,.02)"},${T.acc}06)`,border:"1px solid "+T.acc+"22",borderRadius:20,padding:mob?"22px":"28px 36px",animation:"fadeScale .6s cubic-bezier(.16,1,.3,1) both",position:"relative",overflow:"hidden"}}>
+  {/* Summary — calculated from real sheet data */}
+  <div className="glow-accent" style={{background:`linear-gradient(135deg,${T.acc}0C,${dk?"rgba(99,102,241,.04)":"rgba(99,102,241,.02)"},${T.acc}06)`,border:"1px solid "+T.acc+"22",borderRadius:20,padding:mob?"22px":"28px 36px",position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",top:-60,right:-60,width:200,height:200,borderRadius:"50%",background:`radial-gradient(circle,${T.acc}0A,transparent 70%)`,pointerEvents:"none"}}/>
-    <div style={{position:"absolute",bottom:-40,left:-40,width:160,height:160,borderRadius:"50%",background:`radial-gradient(circle,${dk?"rgba(99,102,241,.06)":"rgba(99,102,241,.03)"},transparent 70%)`,pointerEvents:"none"}}/>
-    <div style={{display:"flex",gap:20}}><div style={{width:52,height:52,borderRadius:18,background:accG,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>✦</div><div><div style={{fontSize:20,fontWeight:700,marginBottom:8}}>Good afternoon, Sahil</div><div style={{fontSize:15,color:T.txS,lineHeight:1.9}}><strong style={{color:T.acc}}>3 hot leads</strong> viewed 3+ times. <strong style={{color:T.gn}}>5 replies</strong> waiting. 2 calls today. MTD: <strong style={{color:T.gn}}>₹2.4L</strong> from 6 deals. <strong style={{color:T.yw}}>Priority:</strong> Follow up Delhi Dental (opened 8× today).</div></div></div>
+    <div style={{display:"flex",gap:20}}><div style={{width:52,height:52,borderRadius:18,background:accG,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>📊</div><div><div style={{fontSize:20,fontWeight:700,marginBottom:8}}>Dashboard Summary</div><div style={{fontSize:15,color:T.txS,lineHeight:1.9}}><strong style={{color:T.acc}}>{allLeads.length} leads</strong> loaded from Google Sheet. <strong style={{color:T.gn}}>{allLeads.filter(l=>l.url).length}</strong> have websites. <strong style={{color:T.yw}}>{allLeads.filter(l=>l.ph).length}</strong> have phone numbers. Sources: {[...new Set(allLeads.map(l=>l.src))].filter(Boolean).join(", ")||"—"}. Cities: {[...new Set(allLeads.map(l=>l.city))].filter(Boolean).length} unique locations.</div></div></div>
   </div>
 
   {/* KPIs Row 1 */}
   <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:mob?10:16}}>
-    {[{l:"Reports Today",v:"12",s:"+4 vs yesterday",c:T.gn,e:"📄"},{l:"WhatsApp Sent",v:"47",s:"98% delivered",c:T.bl,e:"📤"},{l:"Reports Opened",v:"31",s:"66% open rate",c:T.yw,e:"👁"},{l:"Replies Received",v:"5",s:"10.6% reply rate",c:T.acc,e:"💬"},{l:"Revenue MTD",v:"₹2.4L",s:"6 deals closed",c:T.gn,e:"💰"}].map((k,i)=>(
+    {[{l:"Total Leads",v:String(allLeads.length),s:"from Google Sheet",c:T.bl,e:"📋"},{l:"With Website",v:String(allLeads.filter(l=>l.url).length),s:Math.round(allLeads.filter(l=>l.url).length/Math.max(allLeads.length,1)*100)+"% of total",c:T.gn,e:"🌐"},{l:"With Phone",v:String(allLeads.filter(l=>l.ph).length),s:Math.round(allLeads.filter(l=>l.ph).length/Math.max(allLeads.length,1)*100)+"% of total",c:T.yw,e:"📞"},{l:"Categories",v:String([...new Set(allLeads.map(l=>l.type))].filter(Boolean).length),s:"unique types",c:T.acc,e:"🏷"},{l:"Cities",v:String([...new Set(allLeads.map(l=>l.city))].filter(Boolean).length),s:"unique locations",c:T.pr,e:"📍"}].map((k,i)=>(
       <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${k.c},${k.c}66,transparent)`,opacity:.35}}/>
         <div style={{position:"absolute",top:-30,right:-20,width:80,height:80,borderRadius:"50%",background:`radial-gradient(circle,${k.c}06,transparent 70%)`,pointerEvents:"none"}}/>
@@ -893,69 +888,65 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
       </div>
     </div>
 
-    {/* Conversion Funnel */}
+    {/* Lead Distribution */}
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-      <div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:18}}>Conversion Funnel</div>
-      {[["Sent → Opened","66%",T.yw],["Opened → Replied","16%",T.acc],["Replied → Call","60%",T.pr],["Call → Won","53%",T.gn],["Overall","4.2%",T.gn]].map(([l,v,c],i)=>(
+      <div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:18}}>Lead Distribution</div>
+      {(()=>{const cats={};allLeads.forEach(l=>{const t=l.type||"Other";cats[t]=(cats[t]||0)+1});return Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([cat,count],i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:i<4?"1px solid "+T.bd:"none"}}>
-          <span style={{fontSize:12,color:T.txS,flex:1}}>{l}</span>
-          <div style={{width:60,height:6,background:T.el,borderRadius:3,overflow:"hidden"}}><div style={{width:parseFloat(v)+"%",height:"100%",background:c,borderRadius:3}}/></div>
-          <span style={{fontSize:13,fontWeight:700,color:c,width:36,textAlign:"right"}}>{v}</span>
+          <span style={{fontSize:12,color:T.txS,flex:1}}>{cat}</span>
+          <div style={{width:80,height:6,background:T.el,borderRadius:3,overflow:"hidden"}}><div style={{width:Math.round(count/allLeads.length*100)+"%",height:"100%",background:T.acc,borderRadius:3}}/></div>
+          <span style={{fontSize:13,fontWeight:700,color:T.acc,width:36,textAlign:"right"}}>{count}</span>
         </div>
-      ))}
+      ))})()}
     </div>
 
-    {/* Hot Leads */}
+    {/* Top Leads (by score) */}
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>🔥 Hot Leads</div><span onClick={()=>setPg("tracking")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
-      {allLeads.filter(l=>l.views>=2).sort((a,b)=>b.views-a.views).slice(0,4).map((l,i)=>(
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Top Leads (by data)</div><span onClick={()=>setPg("leads")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
+      {allLeads.filter(l=>l.name).slice(0,4).map((l,i)=>(
         <div key={i} onClick={()=>setDet(l)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid "+T.bd,cursor:"pointer"}}>
-          {l.views>=3?<div style={{width:8,height:8,borderRadius:4,background:T.rd,animation:"pulse 1.5s infinite"}}/>:<div style={{width:8,height:8,borderRadius:4,background:T.yw}}/>}
-          <div style={{flex:1}}><div style={{fontSize:12.5,fontWeight:600}}>{l.name}</div><div style={{fontSize:10.5,color:T.txM}}>{l.views}× · {l.lv}</div></div>
-          <button onClick={e=>{e.stopPropagation();showT("✅ Sent!")}} style={{padding:"5px 12px",borderRadius:8,border:"1px solid "+T.acc+"33",background:T.acc+"0A",color:T.acc,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:ff}}>Follow up</button>
+          <div style={{width:8,height:8,borderRadius:4,background:l.url?T.gn:T.yw}}/>
+          <div style={{flex:1}}><div style={{fontSize:12.5,fontWeight:600}}>{l.name}</div><div style={{fontSize:10.5,color:T.txM}}>{l.city} · {l.type||"—"}</div></div>
+          {l.ph&&<span style={{fontSize:10,color:T.txM,fontFamily:"monospace"}}>{l.ph.slice(-10)}</span>}
         </div>
       ))}
     </div>
   </div>
 
-  {/* Row 3: Revenue mini + Team + Campaigns */}
+  {/* Row 3: Real data cards */}
   <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:16}}>
-    {/* Revenue */}
+    {/* Lead Sources */}
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Revenue</div><span onClick={()=>setPg("revenue")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>Details →</span></div>
-      <div style={{fontSize:36,fontWeight:800,color:T.gn,letterSpacing:-2,marginBottom:12}}>₹2.4L</div>
-      {[["Clinic","₹1.2L",T.gn,80],["Astrologer","₹80K",T.acc,53],["Restaurant","₹60K",T.bl,40]].map(([c,r,cl,w],i)=>(
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>By Source</div><span onClick={()=>setPg("leads")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>Details →</span></div>
+      {(()=>{const s={};allLeads.forEach(l=>{const k=l.src||"Unknown";s[k]=(s[k]||0)+1});return Object.entries(s).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([src,n],i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-          <span style={{fontSize:11,width:75,color:T.txS}}>{c}</span>
-          <div style={{flex:1,height:5,background:T.el,borderRadius:3,overflow:"hidden"}}><div style={{width:w+"%",height:"100%",background:cl,borderRadius:3}}/></div>
-          <span style={{fontSize:11,fontWeight:700,width:45,textAlign:"right"}}>{r}</span>
+          <span style={{fontSize:11,width:80,color:T.txS}}>{src}</span>
+          <div style={{flex:1,height:5,background:T.el,borderRadius:3,overflow:"hidden"}}><div style={{width:Math.round(n/allLeads.length*100)+"%",height:"100%",background:T.acc,borderRadius:3}}/></div>
+          <span style={{fontSize:12,fontWeight:700,width:40,textAlign:"right"}}>{n}</span>
         </div>
-      ))}
+      ))})()}
     </div>
-
-    {/* Team */}
+    {/* Top Cities */}
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Team</div><span onClick={()=>setPg("team")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
-      {[{n:"Sahil",d:5,r:"₹2.1L",rt:"1.2h"},{n:"Rahul",d:2,r:"₹55K",rt:"3.1h"},{n:"Priya",d:1,r:"₹35K",rt:"2.8h"}].map((m,i)=>(
-        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<2?"1px solid "+T.bd:"none"}}>
-          <div style={{width:30,height:30,borderRadius:10,background:accG,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{m.n[0]}</div>
-          <div style={{flex:1}}><div style={{fontSize:12.5,fontWeight:600}}>{m.n}</div></div>
-          <span style={{fontSize:11,fontWeight:700,color:T.gn}}>{m.r}</span>
-          <span style={{fontSize:10,color:T.txM}}>{m.d} deals</span>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Top Cities</div></div>
+      {(()=>{const c={};allLeads.forEach(l=>{const k=l.city||"Unknown";c[k]=(c[k]||0)+1});return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([city,n],i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<3?"1px solid "+T.bd:"none"}}>
+          <span style={{fontSize:12.5,fontWeight:500,flex:1}}>{city}</span>
+          <span style={{fontSize:13,fontWeight:700,color:T.bl}}>{n}</span>
+          <span style={{fontSize:10,color:T.txM}}>{Math.round(n/allLeads.length*100)}%</span>
         </div>
-      ))}
+      ))})()}
     </div>
-
-    {/* Campaigns Mini */}
+    {/* Top Categories */}
     <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Campaigns</div><span onClick={()=>setPg("campaigns")} style={{fontSize:11,color:T.acc,fontWeight:600,cursor:"pointer"}}>All →</span></div>
-      {[{n:"Astrologer · Delhi",s:"live",rd:74,sn:120},{n:"Clinics · Multi",s:"done",rd:52,sn:80},{n:"Restaurants",s:"paused",rd:28,sn:45}].map((c,i)=>(
-        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<2?"1px solid "+T.bd:"none"}}>
-          <div style={{width:8,height:8,borderRadius:4,background:c.s==="live"?T.gn:c.s==="paused"?T.yw:T.txM}}/>
-          <div style={{flex:1,fontSize:12.5,fontWeight:500}}>{c.n}</div>
-          <span style={{fontSize:11,color:T.txM}}>{Math.round(c.rd/c.sn*100)}% read</span>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:18}}><div style={{fontSize:10.5,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Top Categories</div></div>
+      {(()=>{const c={};allLeads.forEach(l=>{const k=l.type||"Other";c[k]=(c[k]||0)+1});return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([cat,n],i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<3?"1px solid "+T.bd:"none"}}>
+          <span style={{fontSize:12.5,fontWeight:500,flex:1}}>{cat}</span>
+          <span style={{fontSize:13,fontWeight:700,color:T.acc}}>{n}</span>
+          <span style={{fontSize:10,color:T.txM}}>{Math.round(n/allLeads.length*100)}%</span>
         </div>
-      ))}
+      ))})()}
     </div>
   </div>
 
@@ -1356,64 +1347,34 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   {pg!=="engine"&&pg!=="adintel"&&<h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,textTransform:"capitalize"}}>{pg==="automations"?"Automation Hub":pg}</h1>}
 
   {pg==="tracking"&&<>
-    <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
-      {[{l:"Total Views",v:"156",c:T.yw,s:"all reports"},{l:"Unique Opens",v:"31",c:T.bl,s:"66% open rate"},{l:"Hot Leads (3+)",v:"8",c:T.rd,s:"immediate follow-up"},{l:"Avg Time on Report",v:"3.2m",c:T.gn,s:"per session"},{l:"Never Opened",v:"16",c:T.txM,s:"needs re-send"}].map((k,i)=>(
-        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
-          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
-          <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>{k.l}</div>
-          <div style={{fontSize:30,fontWeight:800,letterSpacing:-1.5,lineHeight:1}}>{k.v}</div>
-          <div style={{fontSize:12,color:T.txM,marginTop:8}}>{k.s}</div>
+    <div style={{padding:24,background:T.yw+"08",border:"1px solid "+T.yw+"18",borderRadius:16,marginBottom:8}}>
+      <div style={{fontSize:14,fontWeight:600,color:T.yw,marginBottom:6}}>⚠ Tracking requires hosted reports</div>
+      <div style={{fontSize:13,color:T.txM,lineHeight:1.7}}>Report tracking (opens, time spent, device, city) only works when reports are hosted on your domain (e.g. reports.technicalguider.com/r/abc). WhatsApp only gives: sent → delivered → first read. Set up report hosting in backend to enable this page.</div>
+    </div>
+    <div style={{fontSize:12,fontWeight:600,color:T.txS,marginBottom:8}}>What you CAN track right now:</div>
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:14}}>
+      {[{t:"WhatsApp Delivery",d:"Message sent + delivered status. Available via WA Business API webhook.",s:"✅ Possible",c:T.gn},{t:"WhatsApp First Read",d:"Blue tick — if recipient has read receipts ON (~70% users). Single read only, not repeat views.",s:"⚠ Partial (~70%)",c:T.yw},{t:"WhatsApp Reply",d:"When someone replies to your message. Auto-stops drip sequence. Moves to 'Responded' stage.",s:"✅ Possible",c:T.gn}].map((t,i)=>(
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:8}}>{t.t}</div>
+          <div style={{fontSize:12,color:T.txM,lineHeight:1.7,marginBottom:12}}>{t.d}</div>
+          <span style={{padding:"4px 12px",borderRadius:6,background:t.c+"12",color:t.c,fontSize:11,fontWeight:600}}>{t.s}</span>
         </div>
       ))}
     </div>
-    {/* Open rate by category */}
-    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-        <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>Open Rate by Category</div>
-        {[["Clinic","78%",T.gn,78],["Astrologer","62%",T.acc,62],["Restaurant","45%",T.yw,45],["Real Estate","71%",T.bl,71],["Ecommerce","38%",T.rd,38]].map(([c,r,cl,w],i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-            <span style={{fontSize:12,fontWeight:500,width:90,color:T.txS}}>{c}</span>
-            <div style={{flex:1,height:8,background:T.el,borderRadius:4,overflow:"hidden"}}><div style={{width:w+"%",height:"100%",background:cl,borderRadius:4,transition:"width .8s"}}/></div>
-            <span style={{fontSize:13,fontWeight:700,color:cl,width:40,textAlign:"right"}}>{r}</span>
-          </div>
-        ))}
-      </div>
-      <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-        <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:22}}>View Heatmap (by Time)</div>
-        <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(6,1fr)",gap:4}}>
-          {["9AM","10AM","11AM","12PM","1PM","2PM","3PM","4PM","5PM","6PM","7PM","8PM"].map((t2,i)=>{const intensity=[20,45,80,60,30,55,90,75,40,25,15,10][i];return(
-            <div key={i} style={{textAlign:"center"}}>
-              <div style={{height:40,borderRadius:6,background:T.acc,opacity:intensity/100,marginBottom:4}}/>
-              <span style={{fontSize:9,color:T.txF}}>{t2}</span>
-            </div>
-          )})}
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr 1fr",gap:14}}>
+      {[{t:"Report Open Count",d:"How many times someone opened the report link. Requires hosting reports on your domain with tracking pixel.",s:"⏳ After hosting setup",c:T.bl},{t:"Time on Report",d:"How long someone spent reading. Requires JS tracking script on hosted report page.",s:"⏳ After hosting setup",c:T.bl},{t:"Email Open Tracking",d:"Tracking pixel in email detects opens. ~80% accurate (some email clients block images).",s:"✅ Possible with email",c:T.gn}].map((t,i)=>(
+        <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:8}}>{t.t}</div>
+          <div style={{fontSize:12,color:T.txM,lineHeight:1.7,marginBottom:12}}>{t.d}</div>
+          <span style={{padding:"4px 12px",borderRadius:6,background:t.c+"12",color:t.c,fontSize:11,fontWeight:600}}>{t.s}</span>
         </div>
-        <div style={{fontSize:11,color:T.txM,marginTop:14}}>🔥 Peak viewing: 11 AM & 3 PM — best time to send reports</div>
-      </div>
+      ))}
     </div>
-    {/* Live feed */}
-    <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:24,boxShadow:T.sh}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:22}}>
-        <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5}}>Live View Feed</div>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}><div style={{width:8,height:8,borderRadius:4,background:T.rd,animation:"pulse 1.5s infinite"}}/><span style={{fontSize:11,color:T.rd,fontWeight:600}}>Live</span></div>
-      </div>
-      {allLeads.sort((a,b)=>(b.views||0)-(a.views||0)).map((d,i)=>(
-        <div key={i} onClick={()=>setDet(d)} className="hov" style={{display:"flex",alignItems:"center",gap:14,padding:"16px 0",borderBottom:"1px solid "+T.bd,cursor:"pointer"}}>
-          {d.views>=3?<div style={{position:"relative"}}><div style={{width:12,height:12,borderRadius:6,background:T.rd}}/><div style={{position:"absolute",inset:-4,borderRadius:10,border:"2px solid "+T.rd,animation:"subtlePing 2s infinite"}}/></div>:<div style={{width:12,height:12,borderRadius:6,background:d.views>0?T.yw:T.txF}}/>}
-          <div style={{flex:1}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:14,fontWeight:600}}>{d.name}</span>
-              {B(d.type,T.bl)}
-              {B(d.src,T.pr)}
-            </div>
-            <div style={{fontSize:12,color:T.txM,marginTop:4}}>{d.url} · {d.city} · {d.owner||"Unassigned"}</div>
-          </div>
-          <div style={{textAlign:"right",marginRight:8}}>
-            <div style={{fontSize:22,fontWeight:800,color:d.views>3?T.gn:d.views>0?T.yw:T.txF}}>{d.views}</div>
-            <div style={{fontSize:11,color:T.txM}}>{d.lv||"Never"}</div>
-          </div>
-          {d.views>=3&&<div style={{padding:"6px 12px",borderRadius:8,background:T.rd+"0A",border:"1px solid "+T.rd+"18",fontSize:11,fontWeight:700,color:T.rd}}>🔥 HOT</div>}
-          {d.views===0&&<button onClick={e=>{e.stopPropagation();showT("📤 Re-sent to "+d.name)}} style={{padding:"6px 14px",borderRadius:8,border:"1px solid "+T.acc+"33",background:T.acc+"0A",color:T.acc,fontSize:10.5,fontWeight:600,cursor:"pointer",fontFamily:ff}}>Re-send</button>}
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:14}}>
+      {[{t:"❌ WhatsApp Repeat View Count",d:"WhatsApp does NOT expose how many times a message was viewed. Only first read."},{t:"❌ WhatsApp Chat Open Count",d:"WhatsApp does NOT expose how many times someone opened the chat."},{t:"❌ PDF Download Tracking (via WA)",d:"If you send PDF directly on WhatsApp, there's no way to track if they opened it."},{t:"❌ Forward/Screenshot Detection",d:"WhatsApp does NOT tell if someone forwarded or screenshotted your message."}].map((t,i)=>(
+        <div key={i} style={{background:T.rd+"05",border:"1px solid "+T.rd+"12",borderRadius:16,padding:20}}>
+          <div style={{fontSize:13,fontWeight:600,color:T.rd,marginBottom:4}}>{t.t}</div>
+          <div style={{fontSize:12,color:T.txM,lineHeight:1.6}}>{t.d}</div>
         </div>
       ))}
     </div>
@@ -1429,8 +1390,8 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         {["all","Maps","FB Ads","Manual"].map(s=><button key={s} onClick={()=>setRevenueFilter(s)} style={{padding:"7px 14px",borderRadius:9,border:"none",fontSize:11,fontWeight:600,fontFamily:ff,cursor:"pointer",background:revenueFilter===s?T.pr+"18":"transparent",color:revenueFilter===s?T.pr:T.txM}}>{s==="all"?"All Sources":s}</button>)}
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(5,1fr)",gap:14}}>
-      {[{l:"Revenue MTD",v:"₹2,40,000",c:T.gn,s:"6 deals closed"},{l:"Pipeline Value",v:"₹12.6L",c:T.bl,s:"34 leads in pipe"},{l:"Avg Deal Size",v:"₹40,000",c:T.acc,s:"across all deals"},{l:"Conversion Rate",v:"4.2%",c:T.yw,s:"from reports sent"},{l:"Revenue/Send",v:"₹140",c:T.pr,s:"per WhatsApp msg"}].map((k,i)=>(
+    <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
+      {[{l:"Total Leads",v:String(allLeads.length),c:T.bl,s:"in sheet"},{l:"With Website",v:String(allLeads.filter(l=>l.url).length),c:T.gn,s:"audit-ready"},{l:"With Phone",v:String(allLeads.filter(l=>l.ph).length),c:T.acc,s:"contactable"},{l:"Categories",v:String([...new Set(allLeads.map(l=>l.type))].filter(Boolean).length),c:T.pr,s:"lead types"}].map((k,i)=>(
         <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>{k.l}</div>
@@ -1549,7 +1510,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         <div><div style={{fontSize:12,fontWeight:600,color:T.txM,marginBottom:8}}>Include</div><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{["Pipeline","Revenue","Hot Leads","Tasks"].map(t2=><span key={t2} style={{padding:"4px 10px",borderRadius:6,background:T.gn+"14",color:T.gn,fontSize:10.5,fontWeight:600}}>{t2}</span>)}</div></div>
       </div>
       <div style={{marginTop:16,padding:16,borderRadius:14,background:T.sf,border:"1px solid "+T.bd,fontSize:12,color:T.txS,lineHeight:1.8,fontStyle:"italic"}}>
-        <strong style={{color:T.acc}}>Preview:</strong> "Good morning Sahil! 📊 Yesterday: 12 reports sent, 8 opened (67%), 2 replied. 🔥 3 hot leads need follow-up. 💰 MTD: ₹2.4L from 6 deals. 📞 Today: 2 calls scheduled. Priority: Follow up Delhi Dental (opened 8×)."
+        <strong style={{color:T.acc}}>Preview (example):</strong> "Good morning! 📊 Yesterday: X reports sent, Y opened, Z replied. 🔥 N hot leads need follow-up. 💰 MTD: ₹XX from N deals. Priority: [auto-detected from data]"
       </div>
     </div>
   </>}
@@ -1623,7 +1584,7 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   {pg==="team"&&<>
     {/* Team KPIs */}
     <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(4,1fr)",gap:14}}>
-      {[{l:"Team Revenue",v:"₹2.4L",c:T.gn,s:"this month"},{l:"Deals Closed",v:"8",c:T.acc,s:"by all members"},{l:"Avg Response",v:"2.4h",c:T.yw,s:"time to first reply"},{l:"Active Leads",v:"10",c:T.bl,s:"in pipeline"}].map((k,i)=>(
+      {[{l:"Total Leads",v:String(allLeads.length),c:T.bl,s:"in sheet"},{l:"With Website",v:String(allLeads.filter(l=>l.url).length),c:T.gn,s:"audit candidates"},{l:"With Phone",v:String(allLeads.filter(l=>l.ph).length),c:T.acc,s:"contactable"},{l:"Unique Cities",v:String([...new Set(allLeads.map(l=>l.city))].filter(Boolean).length),c:T.yw,s:"coverage"}].map((k,i)=>(
         <div key={i} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"24px 20px",boxShadow:T.sh,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:k.c,opacity:.2}}/>
           <div style={{fontSize:10,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>{k.l}</div>
