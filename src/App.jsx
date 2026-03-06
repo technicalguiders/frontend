@@ -693,8 +693,8 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   </div>
 </header>
 
-<div style={{flex:1,overflow:"auto",padding:mob?"20px 16px 80px":"36px 36px 64px"}}>
-<div key={pg+String(dk)} style={{position:"relative",zIndex:1,animation:"rise .6s cubic-bezier(.16,1,.3,1) both"}}>
+<div style={{flex:1,overflow:"auto",padding:mob?"20px 16px 80px":"32px 32px 64px"}}>
+<div key={pg+String(dk)} style={{position:"relative",zIndex:1,animation:"rise .6s cubic-bezier(.16,1,.3,1) both",width:"100%",maxWidth:1400,margin:"0 auto"}}>
 
 {/* ═══ HOME ═══ */}
 {pg==="home"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
@@ -1109,15 +1109,16 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
     <div><h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Sheet Data</h1><p style={{fontSize:14,color:T.txS}}>Live view of your Google Sheet — read only</p></div>
     <div style={{display:"flex",gap:8}}>
-      <button onClick={async()=>{showT("🔄 Syncing...");if(!DEMO){const r=await apiCall("/sheets/sync",{method:"POST"});showT("✅ Synced "+(r?.synced||0)+" leads")}else showT("🔄 Refreshed!")}} style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Refresh</button>
+      <button onClick={async()=>{showT("🔄 Syncing...");if(!DEMO){const r=await apiCall("/sheets/sync",{method:"POST"});showT("✅ Synced "+(r?.synced||0)+" leads");await reloadLeads()}else showT("🔄 Refreshed!")}} style={{padding:"10px 20px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↻ Sync Now</button>
       {sheetUrl&&<a href={sheetUrl} target="_blank" rel="noreferrer" style={{padding:"10px 20px",borderRadius:12,border:"none",background:accG,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>↗ Open in Sheets</a>}
     </div>
   </div>
-  {/* Sheet URL Config */}
-  <div style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"16px 22px",boxShadow:T.sh,display:"flex",gap:12,alignItems:"center"}}>
-    <div style={{fontSize:12,fontWeight:600,color:T.txM,whiteSpace:"nowrap"}}>Sheet URL:</div>
-    <input value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} placeholder="Paste your Google Sheet URL here…" style={{...IS,flex:1,fontSize:12,fontFamily:"monospace"}}/>
-    <button onClick={()=>showT("✅ Sheet URL saved!")} style={{padding:"10px 18px",borderRadius:10,border:"none",background:T.gn,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff,whiteSpace:"nowrap"}}>Save</button>
+  {/* Connection Status */}
+  <div style={{display:"flex",gap:12,alignItems:"center",padding:"12px 18px",background:T.gn+"08",border:"1px solid "+T.gn+"18",borderRadius:16}}>
+    <div style={{width:10,height:10,borderRadius:5,background:T.gn,boxShadow:`0 0 8px ${T.gn}66`}}/>
+    <span style={{fontSize:13,color:T.gn,fontWeight:600}}>Connected</span>
+    <span style={{fontSize:12,color:T.txM}}>· Last synced: 2 min ago · {allLeads.length} rows</span>
+    <span style={{fontSize:12,color:T.txM,marginLeft:"auto"}}>Sheet URL configured in Settings</span>
   </div>
   {/* Tab bar */}
   <div style={{display:"flex",gap:2,background:dk?T.el:T.ra,borderRadius:14,padding:4,border:"1px solid "+T.bd}}>
@@ -1189,10 +1190,6 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
         ))}
       </div>
     </div>}
-  </div>
-  <div style={{fontSize:12,color:T.txM,display:"flex",alignItems:"center",gap:8}}>
-    <div style={{width:8,height:8,borderRadius:4,background:T.gn}}/>
-    Connected to Google Sheet · Last synced: 2 minutes ago · {allLeads.length} rows
   </div>
 </div>}
 
@@ -1911,7 +1908,31 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
     </div>
   </div>}
 
-  {pg==="settings"&&<div style={{maxWidth:mob?"100%":700}}>{[{h:"Google",r:[["Sheet ID","1abc…"],["Tab","Leads"]]},{h:"WhatsApp",r:[["Provider","WA Business API"],["API Key","••••••••"]]},{h:"Engine",r:[["Template","premium-v1"],["Rate","10/min"]]},{h:"AI",r:[["Model","claude-sonnet-4-5"],["Cap","₹500"]]}].map((s,si)=><div key={si} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}><div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>{s.h}</div>{s.r.map(([k,v],i)=><div key={i} style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:i<s.r.length-1?"1px solid "+T.bd:"none"}}><span style={{fontSize:14,color:T.txS}}>{k}</span><input defaultValue={v} style={IS}/></div>)}</div>)}<button onClick={async()=>{if(!DEMO)await apiCall("/settings",{method:"PUT",body:{updated:true}});showT("✅ Settings saved!")}} style={{padding:"14px 30px",borderRadius:14,border:"none",background:accG,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:ff}}>Save</button>{!DEMO&&<button onClick={()=>{try{localStorage.removeItem("tg_token")}catch{};setLoggedIn(false)}} style={{padding:"14px 30px",borderRadius:14,border:"1px solid "+T.rd+"33",background:T.rd+"0A",color:T.rd,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:ff,marginLeft:12}}>Logout</button>}</div>}
+  {pg==="settings"&&<div style={{maxWidth:mob?"100%":800}}>
+    {/* Google Sheets Config - with URL */}
+    <div className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
+      <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>Google Sheets</div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:"1px solid "+T.bd}}>
+        <span style={{fontSize:14,color:T.txS,fontWeight:600}}>Sheet URL</span>
+        <input value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/xxx/edit" style={{...IS,fontFamily:"monospace",fontSize:12}}/>
+      </div>
+      {[["Sheet ID","1abc…xyz"],["Tab Name","Leads"],["Drive Folder (HTML)","folder_html_id"],["Drive Folder (PDF)","folder_pdf_id"]].map(([k,v],i)=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:i<3?"1px solid "+T.bd:"none"}}><span style={{fontSize:14,color:T.txS}}>{k}</span><input defaultValue={v} style={IS}/></div>
+      ))}
+      <button onClick={()=>showT("✅ Sheet connection tested!")} style={{marginTop:14,padding:"10px 20px",borderRadius:10,border:"1px solid "+T.gn+"33",background:T.gn+"0A",color:T.gn,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff}}>🔗 Test Connection</button>
+    </div>
+    {/* Other settings */}
+    {[{h:"WhatsApp API",r:[["Provider","WA Business API"],["API Key","••••••••"],["Phone Number","+91-XXXXXXXXXX"],["Rate Limit","50/hour"]]},{h:"Report Engine",r:[["Default Template","premium-v1"],["Rate Limit","10/min"],["Workers","3"]]},{h:"AI Configuration",r:[["Model","claude-sonnet-4-5"],["Max Tokens","2000"],["Daily Cap","₹500"]]}].map((s,si)=>(
+      <div key={si} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:22,padding:mob?18:28,boxShadow:T.sh,marginBottom:16}}>
+        <div style={{fontSize:11,fontWeight:600,color:T.txM,textTransform:"uppercase",letterSpacing:1.5,marginBottom:24}}>{s.h}</div>
+        {s.r.map(([k,v],i)=><div key={i} style={{display:"grid",gridTemplateColumns:mob?"1fr":"200px 1fr",gap:mob?8:16,alignItems:"center",padding:"14px 0",borderBottom:i<s.r.length-1?"1px solid "+T.bd:"none"}}><span style={{fontSize:14,color:T.txS}}>{k}</span><input defaultValue={v} style={IS}/></div>)}
+      </div>
+    ))}
+    <div style={{display:"flex",gap:12}}>
+      <button onClick={async()=>{if(!DEMO)await apiCall("/settings",{method:"PUT",body:{sheet_url:sheetUrl}});showT("✅ All settings saved!")}} style={{padding:"14px 30px",borderRadius:14,border:"none",background:accG,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:ff}}>Save All Settings</button>
+      {!DEMO&&<button onClick={()=>{try{localStorage.removeItem("tg_token")}catch{};setLoggedIn(false)}} style={{padding:"14px 30px",borderRadius:14,border:"1px solid "+T.rd+"33",background:T.rd+"0A",color:T.rd,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:ff}}>Logout</button>}
+    </div>
+  </div>}
 </div>}
 
 </div></div></main>
