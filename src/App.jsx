@@ -112,10 +112,18 @@ const CITIES=['Agartala','Agra','Ahmedabad','Aizawl','Ajmer','Aligarh','Allahaba
 const STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jammu Kashmir','Jharkhand','Karnataka','Kerala','Ladakh','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal'];
 
 const TMPLS=[
-  {id:"premium-v1",name:"Premium Audit",ver:8,pages:8,active:true,used:47,desc:"8-page dark hero with AI analysis",
+  {id:"v3-premium",name:"V3 Premium — Modular Grid",ver:1,pages:7,active:true,used:0,desc:"7-page premium report with V3 modular card cover, executive summary, technical audit, SEO, marketing, roadmap, and company hero page. Dynamic AI copy with Hindi-English mix.",
+   type:"backend",thumb:"v3",
+   features:["AI Copywriting","Dynamic Scores","V3 Cover","Revenue Impact","Roadmap","CTA Page"],
+   html:"<!-- V3 Premium Template — Rendered by Backend -->",
+   prompt:"Backend-integrated: Claude AI generates Hindi-English sales copy with business-specific data."},
+  {id:"premium-v1",name:"Premium Audit v8",ver:8,pages:8,active:false,used:47,desc:"8-page dark hero with AI analysis. Original template with gradient cover and orange theme.",
+   type:"basic",thumb:"v1",features:["Basic AI","Score Display","Metrics Table"],
    html:`<div style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:40px"><div style="background:#0f172a;color:#fff;padding:40px;border-radius:16px;margin-bottom:24px"><h1 style="margin:0 0 8px;font-size:28px">Website Audit Report</h1><p style="opacity:.6;margin:0">{{lead_name}} · {{website}}</p><div style="margin-top:24px;display:flex;gap:24px"><div><div style="font-size:52px;font-weight:800;color:#f97316">{{overall_score}}</div><div style="font-size:12px;opacity:.5">SCORE</div></div><div><div style="font-size:52px;font-weight:800;color:#fbbf24">{{mobile_score}}</div><div style="font-size:12px;opacity:.5">MOBILE</div></div></div></div><div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;margin-bottom:16px"><h2 style="color:#f97316;margin:0 0 12px;font-size:18px">Executive Summary</h2><p style="color:#475569;line-height:1.8">{{ai_summary}}</p></div><div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px"><h2 style="color:#f97316;margin:0 0 16px;font-size:18px">Key Metrics</h2><table style="width:100%;border-collapse:collapse"><tr><td style="padding:12px;border-bottom:1px solid #f1f5f9;font-weight:600">SEO Grade</td><td style="padding:12px;border-bottom:1px solid #f1f5f9">{{seo_grade}}</td></tr><tr><td style="padding:12px;border-bottom:1px solid #f1f5f9;font-weight:600">Security</td><td style="padding:12px;border-bottom:1px solid #f1f5f9">{{security_level}}</td></tr><tr><td style="padding:12px;font-weight:600">Monthly Loss</td><td style="padding:12px;color:#f97316;font-weight:700">₹{{revenue_impact}}</td></tr></table></div></div>`,
-   prompt:`You are a website audit analyst for an Indian digital marketing agency.\nUse ONLY the data provided. NEVER invent metrics.\nIf any data is missing, say "Not detected".\nOutput ONLY valid JSON.\n\nBusiness: {{lead_name}}\nWebsite: {{website}}\nScore: {{overall_score}}/100\nMobile: {{mobile_score}}/100\nSEO: {{seo_grade}}\nSSL: {{https_secure}}\nLoad: {{load_time}}s\n\nGenerate:\n{\n  "executive_summary": "3-4 hard-hitting sentences",\n  "top_issues": ["issue1","issue2","issue3"],\n  "quick_wins": ["fix1","fix2","fix3"]\n}`},
-  {id:"minimal-v1",name:"Minimal Clean",ver:1,pages:5,active:false,used:0,desc:"5-page light overview",html:"<div style='padding:40px;font-family:sans-serif'><h1>{{lead_name}} Audit</h1><p>Score: {{overall_score}}/100</p><p>{{ai_summary}}</p></div>",prompt:"Summarize audit for {{lead_name}}: Score {{overall_score}}/100"},
+   prompt:`You are a website audit analyst for an Indian digital marketing agency.\nUse ONLY the data provided. NEVER invent metrics.\nOutput ONLY valid JSON.\n\nBusiness: {{lead_name}}\nWebsite: {{website}}\nScore: {{overall_score}}/100\nGenerate:\n{\n  "executive_summary": "3-4 hard-hitting sentences",\n  "top_issues": ["issue1","issue2","issue3"],\n  "quick_wins": ["fix1","fix2","fix3"]\n}`},
+  {id:"minimal-v1",name:"Minimal Clean",ver:1,pages:5,active:false,used:0,desc:"5-page light overview with clean design. Minimal styling, fast to generate.",
+   type:"basic",thumb:"min",features:["Basic Layout","Quick Generate"],
+   html:"<div style='padding:40px;font-family:sans-serif'><h1>{{lead_name}} Audit</h1><p>Score: {{overall_score}}/100</p><p>{{ai_summary}}</p></div>",prompt:"Summarize audit for {{lead_name}}: Score {{overall_score}}/100"},
 ];
 
 // Bookmark preset icons (Apple-style emoji)
@@ -212,6 +220,11 @@ const[tmpls,setTmpls]=useState(TMPLS);
 const[editTmpl,setEditTmpl]=useState(null);
 const[previewTmpl,setPreviewTmpl]=useState(null);
 const[editTab,setEditTab]=useState("html");
+const[tmplView,setTmplView]=useState("gallery");
+const[livePreviewHtml,setLivePreviewHtml]=useState("");
+const[livePreviewLoading,setLivePreviewLoading]=useState(false);
+const[selectedTmplId,setSelectedTmplId]=useState("v3-premium");
+const[tmplCompare,setTmplCompare]=useState(false);
 // Pipeline view
 const[pipeView,setPipeView]=useState("summary");
 const[pipeFilter,setPipeFilter]=useState("all");
@@ -387,6 +400,21 @@ const renderTmpl=(html)=>{
   const d={lead_name:"Sharma Astrology",website:"sharmaastro.in",overall_score:"22",mobile_score:"18",seo_grade:"F",security_level:"HIGH RISK",revenue_impact:"1,80,000",ai_summary:"Sharma Astrology scores 22/100 — critically low. Mobile score 18 means 78% of Jaipur visitors leave before seeing services. No SSL, no analytics, no SEO. Competitors are capturing all organic traffic.",load_time:"11.4",https_secure:"No"};
   let r=html;Object.entries(d).forEach(([k,v])=>{r=r.replace(new RegExp("\\{\\{"+k+"\\}\\}","g"),v)});return r;
 };
+const sampleLead={name:"Sharma Astrology",website:"sharmaastro.in",city:"Jaipur",score:"22",categories:"Astrologer",rating:"3.8",reviews:"42",phone:"+91-9876543210",ssl:"false",load_time:"11.4"};
+const loadLivePreview=async(tmpl)=>{
+  if(tmpl.type==="backend"){
+    setLivePreviewLoading(true);setLivePreviewHtml("");
+    try{
+      const r=await fetch(REPORT_API+"/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(sampleLead)});
+      if(r.ok){const html=await r.text();setLivePreviewHtml(html);}else{setLivePreviewHtml("<div style='padding:40px;color:red'>Preview failed — check backend</div>");}
+    }catch(e){setLivePreviewHtml("<div style='padding:40px;color:red'>Backend not connected</div>");}
+    setLivePreviewLoading(false);
+  }else{setLivePreviewHtml(renderTmpl(tmpl.html));}
+};
+const duplicateTmpl=(t)=>{const n={...t,id:t.id+"-copy-"+Date.now(),name:t.name+" (Copy)",ver:1,used:0,active:false};setTmpls(p=>[...p,n]);showT("📋 Template duplicated: "+n.name);};
+const deleteTmpl=(id)=>{setTmpls(p=>p.filter(t=>t.id!==id));showT("🗑️ Template removed");};
+const exportTmpl=(t)=>{const blob=new Blob([JSON.stringify(t,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=t.id+".json";a.click();URL.revokeObjectURL(url);showT("📤 Template exported");};
+const setActiveTmpl=(id)=>{setTmpls(p=>p.map(t=>({...t,active:t.id===id})));setSelectedTmplId(id);showT("✅ Active template changed");};
 
 // THEME
 const T=dk?{
@@ -1159,48 +1187,186 @@ span[style*="borderRadius: 6"]:hover,span[style*="borderRadius:6"]:hover{filter:
   </div>
 </div>}
 
-{/* ═══ TEMPLATES (with Editor + Preview + WA Tab) ═══ */}
+{/* ═══ TEMPLATES — Premium Template Manager ═══ */}
 {pg==="templates"&&<div style={{display:"flex",flexDirection:"column",gap:22}}>
-  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-    <h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8}}>Templates</h1>
-    <button style={{padding:"10px 22px",borderRadius:12,border:"none",background:accG,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff}}>+ New</button>
+  {/* Header */}
+  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:14}}>
+    <div>
+      <h1 style={{fontSize:28,fontWeight:800,letterSpacing:-.8,marginBottom:4}}>Template Studio</h1>
+      <p style={{fontSize:14,color:T.txS}}>Design, preview, and manage your report templates</p>
+    </div>
+    <div style={{display:"flex",gap:8}}>
+      <label style={{padding:"10px 18px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>
+        📥 Import
+        <input type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f){const reader=new FileReader();reader.onload=ev=>{try{const t=JSON.parse(ev.target.result);setTmpls(p=>[...p,{...t,id:t.id+"-imp-"+Date.now()}]);showT("✅ Template imported!")}catch{showT("❌ Invalid JSON")}};reader.readAsText(f)}}}/>
+      </label>
+      <button onClick={()=>{const n={id:"custom-"+Date.now(),name:"New Template",ver:1,pages:1,active:false,used:0,desc:"Custom template",type:"basic",thumb:"new",features:[],html:"<div style='padding:40px;font-family:sans-serif'><h1>{{lead_name}}</h1><p>Score: {{overall_score}}/100</p></div>",prompt:"Generate audit for {{lead_name}}"};setTmpls(p=>[...p,n]);setEditTmpl(n);setEditTab("html");showT("📄 New template created")}} style={{padding:"10px 22px",borderRadius:12,border:"none",background:accG,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff}}>+ New Template</button>
+    </div>
   </div>
+
   {/* Tab bar */}
   <div style={{display:"flex",gap:3,background:dk?T.el:T.ra,borderRadius:14,padding:4,border:"1px solid "+T.bd,alignSelf:"flex-start"}}>
-    {[["templates","Report Templates"],["wa","WhatsApp Templates"]].map(([id,lb])=>(
+    {[["templates","📄 Report Templates"],["wa","💬 WhatsApp Templates"]].map(([id,lb])=>(
       <button key={id} onClick={()=>setWaTab(id)} style={{padding:"10px 22px",borderRadius:10,border:"none",fontSize:13,fontWeight:600,fontFamily:ff,cursor:"pointer",background:waTab===id?T.sf:"transparent",color:waTab===id?T.tx:T.txM,boxShadow:waTab===id?T.sh:"none",transition:"all .2s"}}>{lb}</button>
     ))}
   </div>
 
-  {waTab==="templates"&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:20}}>
-    {tmpls.map(t=>(
-      <div key={t.id} className="hov" style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:24,overflow:"hidden",boxShadow:T.sh,opacity:t.active?1:.55}}>
-        <div style={{height:160,background:t.active?`linear-gradient(135deg,#0B1120 0%,#1a1f3a 50%,${T.acc}22 100%)`:(dk?T.el:T.ra),display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
-          <div style={{fontSize:48,opacity:.08}}>📄</div>
-          <div style={{position:"absolute",top:16,right:16,display:"flex",gap:6}}>
-            {B(t.active?"Active":"Draft",t.active?T.gn:T.txM)}
-            {B("v"+t.ver,T.bl)}
-          </div>
-          <div style={{position:"absolute",bottom:16,left:16,display:"flex",gap:8}}>
-            {B(t.pages+" pages",T.txM)}
-            {B(t.used+"× used",T.acc)}
+  {waTab==="templates"&&<>
+    {/* Stats bar */}
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(4,1fr)",gap:12}}>
+      {[
+        ["📄",tmpls.length,"Total Templates",T.bl],
+        ["✅",tmpls.filter(t=>t.active).length,"Active",T.gn],
+        ["📊",tmpls.reduce((a,t)=>a+t.used,0)+"×","Total Uses",T.acc],
+        ["📐",tmpls.find(t=>t.active)?.pages||0,"Pages (Active)",T.pr]
+      ].map(([ico,val,lbl,clr],i)=>(
+        <div key={i} style={{background:T.sf,border:"1px solid "+T.bd,borderRadius:18,padding:"18px 22px",boxShadow:T.sh}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:40,height:40,borderRadius:12,background:clr+"14",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{ico}</div>
+            <div><div style={{fontSize:22,fontWeight:800,letterSpacing:-.5}}>{val}</div><div style={{fontSize:11,color:T.txM,fontWeight:500}}>{lbl}</div></div>
           </div>
         </div>
-        <div style={{padding:24}}>
-          <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>{t.name}</div>
-          <p style={{fontSize:14,color:T.txS,lineHeight:1.7,marginBottom:22}}>{t.desc}</p>
-          <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>setPreviewTmpl(t)} className="hov" style={{flex:1,padding:"14px",borderRadius:14,border:"1px solid "+T.bd,background:T.sf,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>👁 Preview</button>
-            <button onClick={()=>{setEditTmpl({...t});setEditTab("html")}} className="hov" style={{flex:1,padding:"14px",borderRadius:14,border:"1px solid "+T.acc+"33",background:T.acc+"0A",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.acc}}>✏️ Edit HTML & Prompt</button>
+      ))}
+    </div>
+
+    {/* View toggle */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontSize:13,fontWeight:600,color:T.txM}}>
+        Active: <span style={{color:T.gn,fontWeight:700}}>{tmpls.find(t=>t.active)?.name||"None"}</span>
+        {" — "}this template is used when generating reports
+      </div>
+      <div style={{display:"flex",gap:3,background:dk?T.el:T.ra,borderRadius:10,padding:3,border:"1px solid "+T.bd}}>
+        {[["gallery","🗂"],["list","☰"]].map(([id,ico])=>(
+          <button key={id} onClick={()=>setTmplView(id)} style={{padding:"6px 12px",borderRadius:7,border:"none",fontSize:14,cursor:"pointer",fontFamily:ff,background:tmplView===id?T.sf:"transparent",color:tmplView===id?T.tx:T.txM,boxShadow:tmplView===id?T.sh:"none"}}>{ico}</button>
+        ))}
+      </div>
+    </div>
+
+    {/* Template Cards — Gallery View */}
+    {tmplView==="gallery"&&<div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(2,1fr)",gap:20}}>
+      {tmpls.map(t=>(
+        <div key={t.id} className="hov" style={{background:T.sf,border:t.active?"2px solid "+T.gn:"1px solid "+T.bd,borderRadius:24,overflow:"hidden",boxShadow:t.active?("0 0 0 4px "+T.gn+"18,"+T.sh):T.sh,transition:"all .3s"}}>
+          {/* Thumbnail preview area */}
+          <div style={{height:200,position:"relative",overflow:"hidden",cursor:"pointer"}} onClick={()=>{loadLivePreview(t)}}>
+            {t.type==="backend"?
+              <div style={{height:"100%",background:"linear-gradient(135deg,#F8F0E0,#FDF5E8)",display:"flex",flexDirection:"column",padding:20,gap:8}}>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <div style={{width:24,height:24,borderRadius:6,background:"#8B2808",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:8,color:"#fff",fontWeight:800}}>TG</span></div>
+                  <span style={{fontSize:9,fontWeight:800,letterSpacing:1,color:"#8B2808"}}>TECHNICALGUIDER</span>
+                </div>
+                <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                  <div style={{background:"linear-gradient(135deg,#1A0800,#2A0E04)",borderRadius:6,padding:10}}><div style={{fontSize:7,color:"rgba(196,74,20,.6)",fontWeight:700,letterSpacing:1,marginBottom:3}}>COVER</div><div style={{fontSize:11,color:"#E05A1A",fontWeight:800}}>Rs.{t.id==="v3-premium"?"2,40,000":"—"}+</div></div>
+                  <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:6,padding:10}}><div style={{fontSize:7,color:"#8B2808",fontWeight:700,letterSpacing:1,marginBottom:3}}>SCORE</div><div style={{fontSize:22,fontWeight:900,color:"#D23708"}}>34</div></div>
+                  <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:6,padding:10}}><div style={{fontSize:7,color:"#8B2808",fontWeight:700,letterSpacing:1,marginBottom:3}}>KPI GRID</div><div style={{display:"flex",gap:2}}>{[1,2,3,4].map(i=><div key={i} style={{width:14,height:8,borderRadius:2,background:i<3?"#D23708":"#A87020"}}/>)}</div></div>
+                  <div style={{background:"#06050A",borderRadius:6,padding:10}}><div style={{fontSize:7,color:"rgba(210,55,8,.6)",fontWeight:700,letterSpacing:1,marginBottom:3}}>CTA</div><div style={{fontSize:8,color:"rgba(255,255,255,.4)"}}>WhatsApp + Email</div></div>
+                </div>
+              </div>:
+              <div style={{height:"100%",background:dk?`linear-gradient(135deg,#0B1120,#1a1f3a,${T.acc}22)`:(T.ra),display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontSize:56,opacity:.12}}>📄</div>
+              </div>
+            }
+            {/* Badges */}
+            <div style={{position:"absolute",top:12,right:12,display:"flex",gap:6}}>
+              {t.active&&<span style={{padding:"4px 10px",borderRadius:8,background:T.gn,color:"#fff",fontSize:10,fontWeight:700}}>★ ACTIVE</span>}
+              <span style={{padding:"4px 10px",borderRadius:8,background:dk?"rgba(255,255,255,.1)":"rgba(0,0,0,.06)",color:T.txM,fontSize:10,fontWeight:600,backdropFilter:"blur(8px)"}}>v{t.ver}</span>
+            </div>
+            <div style={{position:"absolute",bottom:12,left:12,display:"flex",gap:6}}>
+              <span style={{padding:"4px 10px",borderRadius:8,background:"rgba(0,0,0,.5)",color:"#fff",fontSize:10,fontWeight:600,backdropFilter:"blur(8px)"}}>{t.pages} pages</span>
+              {t.used>0&&<span style={{padding:"4px 10px",borderRadius:8,background:"rgba(0,0,0,.5)",color:T.acc,fontSize:10,fontWeight:600,backdropFilter:"blur(8px)"}}>{t.used}× used</span>}
+            </div>
+            {/* Hover overlay */}
+            <div className="hov" style={{position:"absolute",inset:0,background:"rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",opacity:0,transition:"opacity .3s"}}
+              onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}>
+              <span style={{padding:"10px 20px",borderRadius:10,background:"#fff",color:"#000",fontSize:13,fontWeight:700}}>👁 Live Preview</span>
+            </div>
           </div>
+          {/* Card body */}
+          <div style={{padding:22}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+              <div style={{fontSize:20,fontWeight:700}}>{t.name}</div>
+              <span style={{padding:"4px 10px",borderRadius:8,background:t.type==="backend"?T.acc+"18":T.bl+"18",color:t.type==="backend"?T.acc:T.bl,fontSize:9,fontWeight:700,letterSpacing:.5,textTransform:"uppercase"}}>{t.type==="backend"?"AI + PDF":"Basic HTML"}</span>
+            </div>
+            <p style={{fontSize:13,color:T.txS,lineHeight:1.7,marginBottom:14}}>{t.desc}</p>
+            {/* Feature tags */}
+            {t.features&&<div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:16}}>
+              {t.features.map((f,i)=><span key={i} style={{padding:"3px 8px",borderRadius:6,background:dk?T.el:T.ra,border:"1px solid "+T.bd,fontSize:10,fontWeight:600,color:T.txM}}>{f}</span>)}
+            </div>}
+            {/* Action buttons */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <button onClick={()=>{loadLivePreview(t)}} className="hov" style={{flex:1,padding:"12px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS,minWidth:100}}>👁 Preview</button>
+              <button onClick={()=>{setEditTmpl({...t});setEditTab("html")}} className="hov" style={{flex:1,padding:"12px",borderRadius:12,border:"1px solid "+T.acc+"33",background:T.acc+"0A",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.acc,minWidth:100}}>✏️ Edit</button>
+              {!t.active&&<button onClick={()=>setActiveTmpl(t.id)} className="hov" style={{padding:"12px 16px",borderRadius:12,border:"1px solid "+T.gn+"33",background:T.gn+"0A",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.gn}}>✅ Set Active</button>}
+              <div style={{position:"relative"}} className="hov">
+                <button onClick={e=>{const m=e.currentTarget.nextSibling;m.style.display=m.style.display==="none"?"block":"none"}} style={{padding:"12px",borderRadius:12,border:"1px solid "+T.bd,background:T.sf,fontSize:13,cursor:"pointer",fontFamily:ff,color:T.txM}}>⋯</button>
+                <div style={{display:"none",position:"absolute",right:0,top:"100%",marginTop:4,background:T.sf,border:"1px solid "+T.bd,borderRadius:14,boxShadow:T.shH,zIndex:99,minWidth:160,overflow:"hidden"}}>
+                  <div onClick={()=>duplicateTmpl(t)} style={{padding:"12px 16px",fontSize:13,cursor:"pointer",color:T.txS,fontWeight:500,borderBottom:"1px solid "+T.bd}}>📋 Duplicate</div>
+                  <div onClick={()=>exportTmpl(t)} style={{padding:"12px 16px",fontSize:13,cursor:"pointer",color:T.txS,fontWeight:500,borderBottom:"1px solid "+T.bd}}>📤 Export JSON</div>
+                  {!t.active&&<div onClick={()=>deleteTmpl(t.id)} style={{padding:"12px 16px",fontSize:13,cursor:"pointer",color:T.rd,fontWeight:500}}>🗑 Delete</div>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>}
+
+    {/* Template Cards — List View */}
+    {tmplView==="list"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {tmpls.map(t=>(
+        <div key={t.id} className="hov" style={{background:T.sf,border:t.active?"2px solid "+T.gn:"1px solid "+T.bd,borderRadius:16,padding:"16px 22px",boxShadow:T.sh,display:"flex",alignItems:"center",gap:18}}>
+          <div style={{width:50,height:50,borderRadius:12,background:t.type==="backend"?"linear-gradient(135deg,#8B2808,#C44A14)":dk?T.el:T.ra,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <span style={{fontSize:t.type==="backend"?12:22,color:t.type==="backend"?"#fff":T.txM,fontWeight:800}}>{t.type==="backend"?"TG":"📄"}</span>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:16,fontWeight:700}}>{t.name}</span>
+              {t.active&&<span style={{padding:"2px 8px",borderRadius:6,background:T.gn,color:"#fff",fontSize:9,fontWeight:700}}>ACTIVE</span>}
+              <span style={{padding:"2px 6px",borderRadius:4,background:dk?T.el:T.ra,fontSize:10,color:T.txM,fontWeight:600}}>v{t.ver}</span>
+            </div>
+            <div style={{fontSize:12,color:T.txM,marginTop:2}}>{t.pages} pages · {t.used}× used · {t.type}</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            <button onClick={()=>loadLivePreview(t)} style={{padding:"8px 14px",borderRadius:10,border:"1px solid "+T.bd,background:T.sf,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>👁</button>
+            <button onClick={()=>{setEditTmpl({...t});setEditTab("html")}} style={{padding:"8px 14px",borderRadius:10,border:"1px solid "+T.acc+"33",background:T.acc+"0A",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.acc}}>✏️</button>
+            {!t.active&&<button onClick={()=>setActiveTmpl(t.id)} style={{padding:"8px 14px",borderRadius:10,border:"1px solid "+T.gn+"33",background:T.gn+"0A",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.gn}}>✅</button>}
+          </div>
+        </div>
+      ))}
+    </div>}
+
+    {/* Live Preview Modal */}
+    {livePreviewHtml&&<div style={{position:"fixed",inset:0,zIndex:999,display:"flex",justifyContent:"center",alignItems:"center"}}>
+      <div onClick={()=>setLivePreviewHtml("")} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)"}}/>
+      <div style={{position:"relative",width:"90vw",maxWidth:900,height:"90vh",background:T.sf,borderRadius:24,overflow:"hidden",boxShadow:"0 40px 120px rgba(0,0,0,.4)",display:"flex",flexDirection:"column",zIndex:1}}>
+        <div style={{padding:"16px 24px",borderBottom:"1px solid "+T.bd,display:"flex",justifyContent:"space-between",alignItems:"center",background:dk?T.el:T.ra}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontWeight:700,fontSize:16}}>📄 Live Report Preview</span>
+            <span style={{padding:"4px 10px",borderRadius:8,background:T.acc+"18",color:T.acc,fontSize:10,fontWeight:700}}>SAMPLE DATA</span>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>{const w=window.open("","_blank");w.document.write(livePreviewHtml);w.document.close()}} style={{padding:"8px 16px",borderRadius:10,border:"1px solid "+T.bd,background:T.sf,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:ff,color:T.txS}}>↗️ Open Full</button>
+            <button onClick={()=>setLivePreviewHtml("")} style={{width:32,height:32,borderRadius:8,border:"1px solid "+T.bd,background:T.el,cursor:"pointer",fontSize:14,color:T.txS,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+        </div>
+        <div style={{flex:1,overflow:"auto",background:"#0E0D0E"}}>
+          <iframe srcDoc={livePreviewHtml} style={{width:"100%",height:"100%",border:"none"}} title="Report Preview"/>
         </div>
       </div>
-    ))}
-  </div>}
+    </div>}
+
+    {/* Loading overlay */}
+    {livePreviewLoading&&<div style={{position:"fixed",inset:0,zIndex:999,display:"flex",justifyContent:"center",alignItems:"center",background:"rgba(0,0,0,.4)",backdropFilter:"blur(4px)"}}>
+      <div style={{background:T.sf,borderRadius:20,padding:"32px 48px",textAlign:"center",boxShadow:T.shH}}>
+        <div style={{fontSize:32,marginBottom:12,animation:"spin 1s linear infinite"}}>⏳</div>
+        <div style={{fontSize:16,fontWeight:700}}>Loading Live Preview...</div>
+        <div style={{fontSize:12,color:T.txM,marginTop:6}}>AI is generating sample report</div>
+      </div>
+    </div>}
+  </>}
 
   {waTab==="wa"&&<div style={{display:"flex",flexDirection:"column",gap:16}}>
     {/* Category filter */}
-    <div style={{display:"flex",gap:3,background:dk?T.el:T.ra,borderRadius:12,padding:3,border:"1px solid "+T.bd,alignSelf:"flex-start"}}>
+    <div style={{display:"flex",gap:3,background:dk?T.el:T.ra,borderRadius:12,padding:3,border:"1px solid "+T.bd,alignSelf:"flex-start",flexWrap:"wrap"}}>
       {["All","First Contact","Follow-up","Urgency","Response","Closing","Post-Sale"].map(c=>(
         <button key={c} onClick={()=>setWaTmplCat(c)} style={{padding:"7px 14px",borderRadius:9,border:"none",fontSize:11.5,fontWeight:600,fontFamily:ff,cursor:"pointer",background:waTmplCat===c?T.gn+"18":"transparent",color:waTmplCat===c?T.gn:T.txM}}>{c}</button>
       ))}
